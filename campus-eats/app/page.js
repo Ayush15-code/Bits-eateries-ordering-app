@@ -2,8 +2,8 @@
 import Link from 'next/link';
 
 const STORES = [
-  { id: 'store1', name: "Campus Bites", desc: "Best Pizzas & Burgers", emoji: "🍕" },
-  { id: 'store2', name: "Caffeine Hub", desc: "Coffee & Snacks", emoji: "☕" }
+  { id: 'store1', name: "Food King", desc: "Best Pizzas & Burgers", emoji: "🍕" },
+  { id: 'store2', name: "Subspot", desc: "Coffee & Snacks", emoji: "☕" }
 ];
 
 export default function Home() {

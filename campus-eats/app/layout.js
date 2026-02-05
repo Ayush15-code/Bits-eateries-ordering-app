@@ -1,3 +1,4 @@
+import './globals.css';
 export const metadata = {
   title: 'Bits Eateries',
   description: 'Ordering app for BITS Goa',
