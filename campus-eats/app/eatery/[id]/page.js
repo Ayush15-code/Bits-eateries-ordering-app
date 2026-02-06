@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-
+// import { useRouter, useParams } from 'next/navigation';
 const MOCK_MENU = [
   { id: 1, name: "Mysore Masala Dosa", price: 60 },
   { id: 2, name: "Veg Burger", price: 80 },
