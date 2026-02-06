@@ -1,7 +1,26 @@
 @import "tailwindcss";
 
-/* You can remove the old @tailwind base; @tailwind components; etc. */
-/* Keep your body styles below */
+/* 1. This must be at the top level, NOT inside @theme */
+@variant dark (&:where(.dark, .dark *));
+
+/* 2. @theme is ONLY for variables like colors and fonts */
+@theme {
+  --color-brand-orange: #ea580c;
+}
+
+/* 3. Base styles */
+:root {
+  --background: #f9fafb;
+  --foreground: #111827;
+}
+
+.dark {
+  --background: #030712;
+  --foreground: #f9fafb;
+}
+
 body {
-  @apply bg-gray-50 text-gray-900;
+  background-color: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

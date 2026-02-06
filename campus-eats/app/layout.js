@@ -1,13 +1,12 @@
 import './globals.css';
-export const metadata = {
-  title: 'Bits Eateries',
-  description: 'Ordering app for BITS Goa',
-}
+import { Providers } from './providers';
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="transition-colors duration-300">
+        <Providers>{children}</Providers>
+      </body>
     </html>
-  )
+  );
 }
