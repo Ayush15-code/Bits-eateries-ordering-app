@@ -1,98 +1,63 @@
 "use client";
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-// Import these to make the login work
-import { auth } from '../../lib/firebase'; 
+import { auth, db } from '../../lib/firebase'; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 export default function MerchantLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError(''); // Clear previous errors
-    
+    setError("Checking..."); // Visual feedback that the button was clicked
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      
-      // Navigate to the dashboard after successful login
-      router.push('/merchant/dashboard'); 
-      
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log("Auth Success for UID:", user.uid);
+
+      // FORCE REDIRECT: We navigate first, then let the dashboard handle the check.
+      // This proves if your routing works.
+      window.location.href = '/merchant/dashboard';
+
     } catch (err) {
-      // Better error messages for the user
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('Invalid email or password');
-      } else if (err.code === 'auth/invalid-credential') {
-        setError('Invalid credentials. Please try again.');
-      } else {
-        setError('Login failed. Please try again.');
-      }
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error("Login Error:", err.code);
+      if (err.code === 'auth/user-not-found') setError("Email not registered.");
+      else if (err.code === 'auth/wrong-password') setError("Wrong password.");
+      else setError("Error: " + err.message);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-orange-50 p-6">
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm">
-        <h1 className="text-2xl font-black text-center text-gray-800 mb-2">Merchant Portal</h1>
-        <p className="text-center text-gray-500 mb-6 text-sm">Login to manage your orders</p>
-        
-        {error && (
-          <div className="bg-red-100 text-red-600 p-3 rounded-lg text-sm mb-4 text-center font-medium">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase ml-1">Email Address</label>
-            <input 
-              type="email" 
-              required
-              autoComplete="username"
-              className="w-full p-3 mt-1 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
-              placeholder="shop@campus.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase ml-1">Password</label>
-            <input 
-              type="password" 
-              required
-              autoComplete="current-password"
-              className="w-full p-3 mt-1 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl transition shadow-lg active:scale-95 disabled:opacity-50"
-          >
-            {loading ? "Verifying..." : "Sign In"}
-          </button>
-        </form>
-      </div>
+    <div className="max-w-md mx-auto p-10 mt-20 bg-white rounded-3xl shadow-xl border border-gray-100 font-sans">
+      <h1 className="text-3xl font-black text-gray-800 mb-6">Merchant Log In</h1>
       
-      <button 
-        onClick={() => router.push('/')}
-        className="mt-8 text-orange-600 font-bold text-sm"
-      >
-        ← Back to Student View
-      </button>
+      <form onSubmit={handleLogin} className="space-y-4">
+        <input
+          type="email"
+          placeholder="Email"
+          className="w-full p-4 bg-gray-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-orange-500"
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full p-4 bg-gray-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-orange-500"
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        
+        {error && <p className="text-orange-600 text-sm font-bold bg-orange-50 p-2 rounded-lg text-center">{error}</p>}
+        
+        <button type="submit" className="w-full bg-orange-600 text-white p-4 rounded-xl font-black shadow-lg hover:bg-orange-700 transition-all">
+          ENTER DASHBOARD
+        </button>
+      </form>
     </div>
   );
 }

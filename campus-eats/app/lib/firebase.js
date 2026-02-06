@@ -1,7 +1,6 @@
-"use client";
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCBhQKXyjaV0zLXxwRy1nQKbAkq62GmRA0",
@@ -12,6 +11,11 @@ const firebaseConfig = {
   appId: "1:158805004579:web:fa564bd738b00264d2fc96"
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+// Initialize Firebase (Prevents "already exists" error)
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+// EXPORT THESE TWO:
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+export { auth, db };

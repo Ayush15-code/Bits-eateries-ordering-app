@@ -28,6 +28,7 @@ export default function OrderStatus() {
   // Status Checks
   const isConfirmed = order?.status === "PAID" || order?.status === "CONFIRMED";
   const isRejected = order?.status === "REJECTED" || order?.status === "CANCELLED";
+  const isPending = order?.status === "AWAITING_PAYMENT";
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
@@ -45,23 +46,31 @@ export default function OrderStatus() {
       </div>
 
       <h1 className="text-2xl font-black mb-2 text-gray-900">
-        {isConfirmed ? "Order Confirmed!" : isRejected ? "Order Rejected" : "Payment Pending..."}
-      </h1>
+  {isConfirmed ? "Order Confirmed!" : isRejected ? "Order Rejected" : "Verifying Payment..."}
+</h1>
       
       <p className="text-gray-500 mb-8 px-4">
-        {isConfirmed 
-          ? "Your order has been received at the counter. Head over to pick it up!" 
-          : isRejected 
-          ? "The merchant could not verify your payment or is out of stock. Please visit the counter for help." 
-          : "Please wait while the merchant verifies your payment notification."}
-      </p>
+  {isConfirmed 
+    ? "Your order has been received at the counter. Head over to pick it up!" 
+    : isRejected 
+    ? "The merchant could not verify your payment. Visit the counter for help." 
+    : "We are waiting for the merchant to confirm your UPI payment of ₹" + order?.total}
+</p>
 
       {/* Order Info Card */}
       <div className="w-full bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-8">
-        <p className="text-xs text-gray-400 uppercase tracking-widest mb-1 font-bold">Order Details</p>
-        <p className="font-mono font-bold text-gray-800 mb-2 truncate">{id}</p>
+        <p className="text-xs text-gray-400 uppercase tracking-widest mb-1 font-bold">Order Number</p>
+        
+        {/* Changed this line to show the numeric ID from the database */}
+        <p className="text-5xl font-black text-orange-600 mb-2">
+          {order?.orderId ? `#${order.orderId}` : "..."}
+        </p>
+
+        {/* Small reference for the technical ID if ever needed */}
+        <p className="text-[10px] text-gray-300 font-mono mt-2 truncate">Ref: {id}</p>
+        
         {isRejected && (
-          <p className="text-sm text-red-500 font-medium">Refund will be processed manually if paid.</p>
+          <p className="text-sm text-red-500 font-medium mt-2">Refund will be processed manually if paid.</p>
         )}
       </div>
 
