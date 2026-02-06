@@ -70,15 +70,18 @@ function Checkout() {
     const handleFinalPayment = async ()=>{
         try {
             const docRef = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["addDoc"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$app$2f$lib$2f$firebase$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], "orders"), {
+                orderId: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
                 items: cart,
                 total: total,
-                status: "PAID",
+                status: "AWAITING_PAYMENT",
                 createdAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
             });
-            localStorage.removeItem('pending_cart');
+            // UPI Redirect (Deep link for mobile apps)
+            const upiLink = `upi://pay?pa=your-upi-id@okicici&pn=CampusEats&am=${total}&cu=INR`;
+            window.location.href = upiLink;
             router.push(`/status/${docRef.id}`);
         } catch (e) {
-            alert("Payment Error: Make sure your Firebase is connected!");
+            alert("Error creating order");
         }
     };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -89,7 +92,7 @@ function Checkout() {
                 children: "Review Items"
             }, void 0, false, {
                 fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                lineNumber: 37,
+                lineNumber: 41,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -102,7 +105,7 @@ function Checkout() {
                                     children: item.name
                                 }, void 0, false, {
                                     fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                                    lineNumber: 42,
+                                    lineNumber: 46,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -113,13 +116,13 @@ function Checkout() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                                    lineNumber: 43,
+                                    lineNumber: 47,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, index, true, {
                             fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                            lineNumber: 41,
+                            lineNumber: 45,
                             columnNumber: 11
                         }, this)),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -129,7 +132,7 @@ function Checkout() {
                                 children: "Total"
                             }, void 0, false, {
                                 fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                                lineNumber: 47,
+                                lineNumber: 51,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -140,19 +143,19 @@ function Checkout() {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                                lineNumber: 48,
+                                lineNumber: 52,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                        lineNumber: 46,
+                        lineNumber: 50,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                lineNumber: 39,
+                lineNumber: 43,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Documents$2f$Bits$2d$eateries$2d$ordering$2d$app$2f$campus$2d$eats$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -161,13 +164,13 @@ function Checkout() {
                 children: "Make Full Payment"
             }, void 0, false, {
                 fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-                lineNumber: 52,
+                lineNumber: 56,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/Documents/Bits-eateries-ordering-app/campus-eats/app/checkout/page.js",
-        lineNumber: 36,
+        lineNumber: 40,
         columnNumber: 5
     }, this);
 }

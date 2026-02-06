@@ -1,7 +1,9 @@
 "use client";
 import { useState } from 'react';
-import { loginMerchant } from '../../lib/auth';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
+// Import these to make the login work
+import { auth } from '../../lib/firebase'; 
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function MerchantLogin() {
   const [email, setEmail] = useState('');
@@ -13,14 +15,23 @@ export default function MerchantLogin() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-
+    setError(''); // Clear previous errors
+    
     try {
-      await loginMerchant(email, password);
-      // If successful, go to dashboard
-      router.push('/merchant/dashboard');
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      // Navigate to the dashboard after successful login
+      router.push('/merchant/dashboard'); 
+      
     } catch (err) {
-      setError("Invalid email or password. Please try again.");
+      // Better error messages for the user
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password');
+      } else if (err.code === 'auth/invalid-credential') {
+        setError('Invalid credentials. Please try again.');
+      } else {
+        setError('Login failed. Please try again.');
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -45,8 +56,10 @@ export default function MerchantLogin() {
             <input 
               type="email" 
               required
+              autoComplete="username"
               className="w-full p-3 mt-1 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="shop@campus.com"
+              value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
@@ -56,8 +69,10 @@ export default function MerchantLogin() {
             <input 
               type="password" 
               required
+              autoComplete="current-password"
               className="w-full p-3 mt-1 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="••••••••"
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>

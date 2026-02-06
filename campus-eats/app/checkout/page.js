@@ -18,20 +18,24 @@ export default function Checkout() {
   }, []);
 
   const handleFinalPayment = async () => {
-    try {
-      const docRef = await addDoc(collection(db, "orders"), {
-        items: cart,
-        total: total,
-        status: "PAID",
-        createdAt: serverTimestamp()
-      });
-      localStorage.removeItem('pending_cart');
-      router.push(`/status/${docRef.id}`);
-    } catch (e) {
-      alert("Payment Error: Make sure your Firebase is connected!");
-    }
-  };
+  try {
+    const docRef = await addDoc(collection(db, "orders"), {
+      orderId: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+      items: cart,
+      total: total,
+      status: "AWAITING_PAYMENT", // Matches the Merchant's query
+      createdAt: serverTimestamp()
+    });
+    
+    // UPI Redirect (Deep link for mobile apps)
+    const upiLink = `upi://pay?pa=your-upi-id@okicici&pn=CampusEats&am=${total}&cu=INR`;
+    window.location.href = upiLink;
 
+    router.push(`/status/${docRef.id}`);
+  } catch (e) {
+    alert("Error creating order");
+  }
+};
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 min-h-screen">
       <h1 className="text-2xl font-bold mb-6">Review Items</h1>
