@@ -1,5 +1,17 @@
-.DS_Store
+# Next.js build output
+.next/
+out/
+
+# Dependencies
 node_modules/
-__pycache__/
-*.log
-.venv/
+
+# Environment variables
+.env*.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
