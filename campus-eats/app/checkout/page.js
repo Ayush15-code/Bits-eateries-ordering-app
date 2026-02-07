@@ -13,40 +13,48 @@ export default function Checkout() {
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
   const [shopId, setShopId] = useState('');
+  const [isHydrated, setIsHydrated] = useState(false); // NEW: Safety check
   const router = useRouter();
 
-  // 1. Initial Load from LocalStorage - Fixed to ensure data is caught
+  // 1. Initial Load: Read from storage ONLY ONCE on mount
   useEffect(() => {
     try {
       const savedCart = JSON.parse(localStorage.getItem('pending_cart') || '[]');
       const savedShopId = localStorage.getItem('pending_shop_id') || '';
       
-      // Log for debugging - check your browser console!
-      console.log("Loading cart from storage:", savedCart);
-      
       setCart(savedCart);
       setShopId(savedShopId);
+      
+      // Mark as finished loading
+      setIsHydrated(true); 
     } catch (err) {
       console.error("Failed to load cart:", err);
+      setIsHydrated(true); // Still set to true so UI doesn't hang
     }
   }, []);
 
-  // 2. Keep Total and LocalStorage in sync
+  // 2. Sync State to LocalStorage: Only runs AFTER hydration
   useEffect(() => {
+    if (!isHydrated) return; // STOP: Don't let initial empty state overwrite storage
+
     const newTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
     setTotal(newTotal);
     
-    // Only save to localStorage if there's actually something to save
     if (cart.length > 0) {
       localStorage.setItem('pending_cart', JSON.stringify(cart));
       localStorage.setItem('pending_total', newTotal.toString());
+      localStorage.setItem('pending_shop_id', shopId);
+    } else {
+      // If user removes everything manually on this screen
+      localStorage.removeItem('pending_cart');
+      localStorage.removeItem('pending_total');
+      localStorage.removeItem('pending_shop_id');
     }
-  }, [cart]);
+  }, [cart, isHydrated, shopId]);
 
-  // 3. Grouping Logic - Robust Version
+  // 3. Grouping Logic for UI Display
   const groupedItems = cart.reduce((acc, item) => {
-    // Generate a unique key: Priority ID -> itemName -> name
-    const itemId = item.id || item.itemName || item.name || Math.random().toString();
+    const itemId = item.id || item.itemName || item.name || 'temp-id';
     const existing = acc.find(i => (i.id || i.itemName || i.name) === itemId);
     
     if (existing) {
@@ -64,7 +72,6 @@ export default function Checkout() {
 
   // 4. Quantity Handlers
   const addItem = (item) => {
-    // Strip UI helpers before adding to flat array
     const { quantity, displayName, ...originalItem } = item;
     setCart(prev => [...prev, originalItem]);
   };
@@ -75,20 +82,13 @@ export default function Checkout() {
       const newCart = [...cart];
       newCart.splice(index, 1);
       setCart(newCart);
-      
-      // If the last item is removed, clear storage
-      if (newCart.length === 0) {
-        localStorage.removeItem('pending_cart');
-        localStorage.removeItem('pending_total');
-      }
     }
   };
   
+  // 5. Final Payment: Handle Cleanup here
   const handleFinalPayment = async () => {
-    if (cart.length === 0) {
-      alert("Cart is empty!");
-      return;
-    }
+    if (cart.length === 0) return;
+
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const counterRef = doc(db, "internal", "order_counter");
@@ -118,17 +118,32 @@ export default function Checkout() {
         return { docId: newOrderRef.id, numericId: nextId };
       });
 
+      // --- CLEANUP START ---
+      localStorage.removeItem('pending_cart');
+      localStorage.removeItem('pending_total');
+      localStorage.removeItem('pending_shop_id');
+      
       localStorage.setItem('last_order_doc_id', newOrderData.docId);
       
-      // UPI Link
+      setCart([]); // This triggers the final storage wipe
+      // --- CLEANUP END ---
+
       const upiLink = `upi://pay?pa=your-upi-id@okicici&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
-      window.location.href = upiLink;
+      
+      setTimeout(() => {
+        window.location.href = upiLink;
+      }, 150);
+
       router.push(`/status/${newOrderData.docId}`);
     } catch (e) {
       console.error("Order process failed:", e);
-      alert("Error creating order.");
+      alert("Error creating order. Please try again.");
     }
   };
+
+  // If we haven't read from localStorage yet, show a clean loading state 
+  // to prevent the "Empty Cart" text from flashing
+  if (!isHydrated) return null;
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen transition-colors">
@@ -142,48 +157,26 @@ export default function Checkout() {
         {groupedItems.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-gray-500 dark:text-gray-400 italic">Your cart is empty</p>
-            <button 
-              onClick={() => router.back()} 
-              className="mt-4 text-orange-600 text-sm font-bold underline"
-            >
+            <button onClick={() => router.back()} className="mt-4 text-orange-600 text-sm font-bold underline">
               Go back to menu
             </button>
           </div>
         ) : (
           groupedItems.map((item) => (
-            <div 
-              key={item.id} 
-              className="flex items-center justify-between py-4 border-b border-gray-50 dark:border-gray-800 last:border-0"
-            >
+            <div key={item.id} className="flex items-center justify-between py-4 border-b border-gray-50 dark:border-gray-800 last:border-0">
               <div className="flex-1 pr-4">
-                <h3 className="text-gray-800 dark:text-gray-100 font-bold leading-tight">
-                  {item.displayName}
-                </h3>
+                <h3 className="text-gray-800 dark:text-gray-100 font-bold leading-tight">{item.displayName}</h3>
                 <p className="text-gray-400 text-xs mt-1">₹{item.price} each</p>
               </div>
 
               <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-inner">
-                <button 
-                  onClick={() => removeItem(item.id)} 
-                  className="text-orange-600 font-black text-xl w-6 h-6 flex items-center justify-center hover:bg-orange-100 dark:hover:bg-orange-900/30 rounded-full transition-colors active:scale-90"
-                >
-                  −
-                </button>
-                <span className="text-gray-800 dark:text-white font-black text-sm w-5 text-center">
-                  {item.quantity}
-                </span>
-                <button 
-                  onClick={() => addItem(item)} 
-                  className="text-green-600 font-black text-xl w-6 h-6 flex items-center justify-center hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full transition-colors active:scale-90"
-                >
-                  +
-                </button>
+                <button onClick={() => removeItem(item.id)} className="text-orange-600 font-black text-xl w-6 h-6 flex items-center justify-center transition-colors active:scale-90">−</button>
+                <span className="text-gray-800 dark:text-white font-black text-sm w-5 text-center">{item.quantity}</span>
+                <button onClick={() => addItem(item)} className="text-green-600 font-black text-xl w-6 h-6 flex items-center justify-center transition-colors active:scale-90">+</button>
               </div>
 
               <div className="ml-4 w-20 text-right">
-                <span className="font-black dark:text-white text-gray-900">
-                  ₹{item.price * item.quantity}
-                </span>
+                <span className="font-black dark:text-white text-gray-900">₹{item.price * item.quantity}</span>
               </div>
             </div>
           ))
