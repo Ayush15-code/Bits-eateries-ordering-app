@@ -125,7 +125,18 @@ export default function Checkout() {
       
       localStorage.setItem('last_order_doc_id', newOrderData.docId);
       
-      setCart([]); // This triggers the final storage wipe
+      try {
+        const existingHistory = JSON.parse(localStorage.getItem('order_history') || '[]');
+        // Add new order ID to the front of the list
+        const updatedHistory = [newOrderData.docId, ...existingHistory];
+        // Keep only the last 50 orders to prevent storage bloat
+        localStorage.setItem('order_history', JSON.stringify(updatedHistory.slice(0, 50)));
+      } catch (err) {
+        console.error("Failed to update order history storage:", err);
+      }
+      
+      setCart([]);
+       // This triggers the final storage wipe
       // --- CLEANUP END ---
 
       const upiLink = `upi://pay?pa=your-upi-id@okicici&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
