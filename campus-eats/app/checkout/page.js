@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -15,16 +15,80 @@ export default function Checkout() {
   const [shopId, setShopId] = useState('');
   const router = useRouter();
 
+  // 1. Initial Load from LocalStorage - Fixed to ensure data is caught
   useEffect(() => {
-    const savedCart = JSON.parse(localStorage.getItem('pending_cart') || '[]');
-    const savedTotal = localStorage.getItem('pending_total') || '0';
-    const savedShopId = localStorage.getItem('pending_shop_id') || '';
-    setCart(savedCart);
-    setTotal(savedTotal);
-    setShopId(savedShopId);
+    try {
+      const savedCart = JSON.parse(localStorage.getItem('pending_cart') || '[]');
+      const savedShopId = localStorage.getItem('pending_shop_id') || '';
+      
+      // Log for debugging - check your browser console!
+      console.log("Loading cart from storage:", savedCart);
+      
+      setCart(savedCart);
+      setShopId(savedShopId);
+    } catch (err) {
+      console.error("Failed to load cart:", err);
+    }
   }, []);
 
+  // 2. Keep Total and LocalStorage in sync
+  useEffect(() => {
+    const newTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    setTotal(newTotal);
+    
+    // Only save to localStorage if there's actually something to save
+    if (cart.length > 0) {
+      localStorage.setItem('pending_cart', JSON.stringify(cart));
+      localStorage.setItem('pending_total', newTotal.toString());
+    }
+  }, [cart]);
+
+  // 3. Grouping Logic - Robust Version
+  const groupedItems = cart.reduce((acc, item) => {
+    // Generate a unique key: Priority ID -> itemName -> name
+    const itemId = item.id || item.itemName || item.name || Math.random().toString();
+    const existing = acc.find(i => (i.id || i.itemName || i.name) === itemId);
+    
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      acc.push({ 
+        ...item, 
+        id: itemId, 
+        displayName: item.itemName || item.name || "Item", 
+        quantity: 1 
+      });
+    }
+    return acc;
+  }, []);
+
+  // 4. Quantity Handlers
+  const addItem = (item) => {
+    // Strip UI helpers before adding to flat array
+    const { quantity, displayName, ...originalItem } = item;
+    setCart(prev => [...prev, originalItem]);
+  };
+
+  const removeItem = (targetId) => {
+    const index = cart.findIndex(item => (item.id || item.itemName || item.name) === targetId);
+    if (index > -1) {
+      const newCart = [...cart];
+      newCart.splice(index, 1);
+      setCart(newCart);
+      
+      // If the last item is removed, clear storage
+      if (newCart.length === 0) {
+        localStorage.removeItem('pending_cart');
+        localStorage.removeItem('pending_total');
+      }
+    }
+  };
+  
   const handleFinalPayment = async () => {
+    if (cart.length === 0) {
+      alert("Cart is empty!");
+      return;
+    }
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const counterRef = doc(db, "internal", "order_counter");
@@ -39,10 +103,10 @@ export default function Checkout() {
             nextId = data.currentCount + 1;
           }
         }
-        transaction.set(counterRef, { currentCount: nextId, lastDate: todayStr });
+        transaction.set(counterRef, { currentCount: nextId, lastDate: todayStr }, { merge: true });
 
         const newOrderRef = doc(ordersCol);
-        const orderPayload = {
+        transaction.set(newOrderRef, {
           orderId: nextId,
           items: cart,
           total: total,
@@ -50,17 +114,13 @@ export default function Checkout() {
           createdAt: serverTimestamp(),
           dateStr: todayStr,
           shopId: shopId
-        };
-        transaction.set(newOrderRef, orderPayload);
+        });
         return { docId: newOrderRef.id, numericId: nextId };
       });
 
-      const history = JSON.parse(localStorage.getItem('order_history') || '[]');
-      history.unshift(newOrderData.docId);
-      localStorage.setItem('order_history', JSON.stringify(history));
       localStorage.setItem('last_order_doc_id', newOrderData.docId);
-
-      // UPI Link with dynamic amount
+      
+      // UPI Link
       const upiLink = `upi://pay?pa=your-upi-id@okicici&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
       window.location.href = upiLink;
       router.push(`/status/${newOrderData.docId}`);
@@ -71,40 +131,82 @@ export default function Checkout() {
   };
 
   return (
-    /* 1. Container: bg-gray-50 -> dark:bg-gray-950 */
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen transition-colors">
-      <button onClick={() => router.back()} className="mb-4 text-orange-600 font-bold">← Edit Order</button>
+      <button onClick={() => router.back()} className="mb-4 text-orange-600 font-bold hover:underline">
+        ← Edit Order
+      </button>
       
-      {/* 2. Heading: Added dark:text-white */}
       <h1 className="text-2xl font-black mb-6 dark:text-white">Review Items</h1>
       
-      {/* 3. Review Card: bg-white -> dark:bg-gray-900 and border-b colors */}
       <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm mb-6 border border-gray-100 dark:border-gray-800">
-        {cart.map((item, index) => (
-          <div key={index} className="flex justify-between py-3 border-b border-gray-50 dark:border-gray-800 last:border-0">
-            <span className="text-gray-700 dark:text-gray-300 font-medium">{item.name}</span>
-            <span className="font-bold dark:text-white">₹{item.price}</span>
+        {groupedItems.length === 0 ? (
+          <div className="py-10 text-center">
+            <p className="text-gray-500 dark:text-gray-400 italic">Your cart is empty</p>
+            <button 
+              onClick={() => router.back()} 
+              className="mt-4 text-orange-600 text-sm font-bold underline"
+            >
+              Go back to menu
+            </button>
           </div>
-        ))}
+        ) : (
+          groupedItems.map((item) => (
+            <div 
+              key={item.id} 
+              className="flex items-center justify-between py-4 border-b border-gray-50 dark:border-gray-800 last:border-0"
+            >
+              <div className="flex-1 pr-4">
+                <h3 className="text-gray-800 dark:text-gray-100 font-bold leading-tight">
+                  {item.displayName}
+                </h3>
+                <p className="text-gray-400 text-xs mt-1">₹{item.price} each</p>
+              </div>
 
-        {/* 4. Total Row: Added dark:text-white */}
-        <div className="flex justify-between mt-4 text-xl font-black border-t border-gray-100 dark:border-gray-800 pt-4">
+              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-inner">
+                <button 
+                  onClick={() => removeItem(item.id)} 
+                  className="text-orange-600 font-black text-xl w-6 h-6 flex items-center justify-center hover:bg-orange-100 dark:hover:bg-orange-900/30 rounded-full transition-colors active:scale-90"
+                >
+                  −
+                </button>
+                <span className="text-gray-800 dark:text-white font-black text-sm w-5 text-center">
+                  {item.quantity}
+                </span>
+                <button 
+                  onClick={() => addItem(item)} 
+                  className="text-green-600 font-black text-xl w-6 h-6 flex items-center justify-center hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full transition-colors active:scale-90"
+                >
+                  +
+                </button>
+              </div>
+
+              <div className="ml-4 w-20 text-right">
+                <span className="font-black dark:text-white text-gray-900">
+                  ₹{item.price * item.quantity}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+
+        <div className="flex justify-between mt-4 text-xl font-black border-t border-gray-100 dark:border-gray-800 pt-6">
           <span className="dark:text-white">Total Amount</span>
           <span className="text-orange-600 dark:text-orange-500">₹{total}</span>
         </div>
       </div>
 
-      <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl mb-8 border border-orange-100 dark:border-orange-800/30">
-        <p className="text-xs text-orange-800 dark:text-orange-300 font-bold text-center">
+      <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl mb-8 border border-orange-100 dark:border-orange-800/30 text-center">
+        <p className="text-[11px] text-orange-800 dark:text-orange-300 font-bold leading-relaxed">
           Payment is verified manually. Stay on the status page after paying.
         </p>
       </div>
 
       <button 
-        onClick={handleFinalPayment}
-        className="w-full bg-green-600 dark:bg-green-500 text-white p-5 rounded-2xl font-black shadow-lg transition-transform active:scale-95 text-lg"
+        onClick={handleFinalPayment} 
+        disabled={cart.length === 0}
+        className="w-full bg-green-600 dark:bg-green-500 text-white p-5 rounded-3xl font-black shadow-xl transition-all active:scale-95 text-lg disabled:opacity-50 disabled:grayscale mb-4"
       >
-        Pay Now via UPI
+        Pay ₹{total} via UPI
       </button>
     </div>
   );
