@@ -12,22 +12,28 @@ export default function MerchantLogin() {
   const router = useRouter();
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("Checking...");
+  e.preventDefault();
+  setError(''); // Clear previous errors
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // Using replace or href ensures a fresh state for the dashboard
-      window.location.href = '/merchant/dashboard';
+    // 1. Set the cookie for the Middleware
+    document.cookie = "userRole=merchant; path=/; max-age=86400; SameSite=Lax";
 
-    } catch (err) {
-      if (err.code === 'auth/user-not-found') setError("Email not registered.");
-      else if (err.code === 'auth/wrong-password') setError("Wrong password.");
-      else setError("Error: " + err.message);
+    // 2. Double check Firestore document exists before redirecting
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (!userDoc.exists()) {
+       setError("Account error: No shop linked to this merchant UID in Firestore.");
+       return;
     }
-  };
+
+    // 3. Successful redirect
+    router.push('/merchant/dashboard');
+  } catch (err) {
+    setError(err.message);
+  }
+};
 
   return (
     /* 1. Page Background: Wrapped in a full-screen div for background consistency */
