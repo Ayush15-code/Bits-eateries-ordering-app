@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '../../lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -9,81 +9,157 @@ export default function OrderStatus() {
   const router = useRouter();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // 1. Core Security States
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    if (!id) return;
-    const unsub = onSnapshot(doc(db, "orders", id), (doc) => {
-      if (doc.exists()) {
-        setOrder(doc.data());
-      }
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [id]);
+  if (!id) return;
 
-  if (loading) return (
-    <div className="p-10 text-center text-gray-500 dark:bg-gray-950 min-h-screen">
-      Loading Order...
-    </div>
-  );
+  const docRef = doc(db, "orders", id);
+  
+  const unsub = onSnapshot(docRef, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      console.log("Current Status:", data.status); // Check your browser console
+      setOrder({ ...data, id: snap.id });
+    } else {
+      console.error("No such order in DB!");
+    }
+    setLoading(false);
+  }, (error) => {
+    console.error("Firestore Permission/Connection Error:", error);
+    setLoading(false);
+  });
 
-  const isConfirmed = order?.status === "PAID" || order?.status === "CONFIRMED";
-  const isRejected = order?.status === "REJECTED" || order?.status === "CANCELLED";
+  return () => unsub();
+}, [id]);
 
-  return (
-    /* 1. Background: Added dark:bg-gray-950 and text-gray-900 */
-    <div className="max-w-md mx-auto min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center p-6 text-center transition-colors">
-      
-      {/* 2. Dynamic Icon: Updated for dark mode opacity backgrounds */}
-      <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 
-        ${isConfirmed 
-          ? 'bg-green-100 dark:bg-green-900/30' 
-          : isRejected 
-          ? 'bg-red-100 dark:bg-red-900/30' 
-          : 'bg-orange-100 dark:bg-orange-900/30'}`}>
-        {isConfirmed ? (
-          <span className="text-4xl text-green-600 dark:text-green-400">✅</span>
-        ) : isRejected ? (
-          <span className="text-4xl text-red-600 dark:text-red-400">❌</span>
-        ) : (
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 dark:border-orange-400"></div>
-        )}
+  // 3. Memoized Security Code: Updates only when hour or order ID changes
+  const securityCode = useMemo(() => {
+    if (!order || !order.id) return "0000";
+    const hour = currentTime.getHours();
+    const idPart = order.id.slice(-2).toUpperCase();
+    return `${idPart}${hour < 10 ? '0' + hour : hour}`;
+  }, [order, currentTime.getHours()]); // Dependency on the hour specifically
+
+  const isGlowing = currentTime.getSeconds() % 2 === 0;
+  const isAccepted = order && ['CONFIRMED', 'ACCEPTED'].includes(order.status);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-orange-500"></div>
       </div>
+    );
+  }
 
-      {/* 3. Text: Added dark:text-white and dark:text-gray-400 */}
-      <h1 className="text-2xl font-black mb-2 text-gray-900 dark:text-white">
-        {isConfirmed ? "Order Confirmed!" : isRejected ? "Order Rejected" : "Verifying Payment..."}
-      </h1>
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-white font-bold text-xl">Order Not Found</h1>
+        <button onClick={() => router.push('/eatery')} className="mt-6 bg-white text-black px-6 py-2 rounded-xl font-bold">Go Home</button>
+      </div>
+    );
+  }
+
+  // --- COLLECTED VIEW ---
+  if (order.status === 'COLLECTED') {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+        <div className="mb-6 w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
+          <span className="text-4xl text-green-500">✅</span>
+        </div>
+        <h1 className="text-3xl font-black text-white mb-2">Order Collected!</h1>
+        <p className="text-gray-400 mb-10 text-sm font-medium">Thank you for ordering from Campus Bites.</p>
+        <div className="bg-[#0f1115] border border-gray-800 p-8 rounded-[2.5rem] w-full max-w-sm mb-10 shadow-2xl">
+          <p className="text-7xl font-black text-orange-500 mb-4">#{order.orderId}</p>
+          <p className="text-white/80 font-bold">Total Paid: ₹{order.total}</p>
+        </div>
+        <button onClick={() => router.push('/eatery')} className="w-full max-w-sm bg-white text-black py-4 rounded-2xl font-black active:scale-95 transition-all">Order Something Else</button>
+      </div>
+    );
+  }
+
+  // --- REJECTED VIEW ---
+  if (order.status === 'REJECTED') {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+        <div className="mb-6 w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center text-4xl">❌</div>
+        <h1 className="text-3xl font-black text-white mb-2">Order Rejected</h1>
+        <p className="text-gray-400 mb-8">Please visit the counter for a refund.</p>
+        <button onClick={() => router.push('/eatery')} className="w-full max-w-sm bg-white text-black py-4 rounded-2xl font-black">Back to Home</button>
+      </div>
+    );
+  }
+
+  // --- ACTIVE VIEW ---
+  return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
       
-      <p className="text-gray-500 dark:text-gray-400 mb-8 px-4">
-        {isConfirmed 
-          ? "Your order has been received at the counter. Head over to pick it up!" 
-          : isRejected 
-          ? "The merchant could not verify your payment. Visit the counter for help." 
-          : "We are waiting for the merchant to confirm your UPI payment of ₹" + order?.total}
+      <h1 className="text-3xl font-black text-white mb-2 transition-all">
+        {isAccepted ? "Order Confirmed" : "Verifying Payment"}
+      </h1>
+      <p className="text-gray-400 mb-10 max-w-[280px] text-sm font-medium">
+        {isAccepted 
+          ? "Show this security receipt at the counter to collect your food." 
+          : "Waiting for merchant to confirm your payment of ₹" + (order.total || 0)}
       </p>
 
-      {/* 4. Order Info Card: Added dark:bg-gray-900 and dark:border-gray-800 */}
-      <div className="w-full bg-white dark:bg-gray-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 mb-8">
-        <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1 font-bold">Order Number</p>
+      {/* --- SMART SECURITY RECEIPT CARD --- */}
+      <div className={`
+        relative overflow-hidden transition-all duration-500 p-8 rounded-[3rem] border-4 w-full max-w-sm
+        ${isAccepted && isGlowing ? 'border-orange-500 shadow-[0_0_40px_rgba(249,115,22,0.4)] scale-[1.02]' : 'border-gray-800'}
+        ${isAccepted ? 'bg-gradient-to-b from-gray-900 to-black' : 'bg-[#0f1115]'}
+      `}>
         
-        <p className="text-5xl font-black text-orange-600 dark:text-orange-500 mb-2">
-          {order?.orderId ? `#${order.orderId}` : "..."}
+        {/* Live Clock Tag (Screenshot Killer) */}
+        <div className="absolute top-4 right-6 flex items-center gap-2">
+          <div className={`w-1.5 h-1.5 rounded-full ${isAccepted ? 'bg-green-500 animate-pulse' : 'bg-orange-500 animate-bounce'}`} />
+          <span className="text-[10px] font-mono text-gray-500 tabular-nums">
+            {currentTime.toLocaleTimeString()}
+          </span>
+        </div>
+
+        {!isAccepted && (
+          <div className="flex justify-center mb-6">
+            <div className="w-10 h-10 border-t-2 border-orange-500 rounded-full animate-spin" />
+          </div>
+        )}
+
+        <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] mb-2">
+          {isAccepted ? "Verification Receipt" : "Order Number"}
+        </p>
+        
+        <p className={`font-black transition-all duration-500 ${isAccepted ? 'text-8xl text-white' : 'text-7xl text-orange-500'}`}>
+          #{order.orderId}
         </p>
 
-        <p className="text-[10px] text-gray-300 dark:text-gray-600 font-mono mt-2 truncate">Ref: {id}</p>
-        
-        {isRejected && (
-          <p className="text-sm text-red-500 dark:text-red-400 font-medium mt-2">Refund will be processed manually if paid.</p>
+        {isAccepted && (
+          <div className="mt-8 animate-in fade-in zoom-in duration-700">
+            <div className="bg-white text-black px-6 py-4 rounded-2xl inline-block shadow-2xl transform transition-transform">
+              <p className="text-[8px] font-black uppercase text-gray-400 leading-none mb-1">Security Code</p>
+              <p className="text-4xl font-black tracking-[0.2em]">{securityCode}</p>
+            </div>
+            <div className="flex items-center justify-center gap-2 mt-4">
+               <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
+               <p className="text-[10px] text-orange-500 font-bold uppercase tracking-widest">Live Security Active</p>
+            </div>
+          </div>
+        )}
+
+        {!isAccepted && (
+          <p className="text-gray-600 text-[10px] font-mono mt-4 tracking-widest uppercase">
+            ID: {order.id?.slice(-8) || "..."}
+          </p>
         )}
       </div>
 
-      {/* 5. Home Button: Added dark:bg-white dark:text-black for contrast */}
       <button 
-        onClick={() => router.push('/eatery')}
-        className="w-full bg-gray-900 dark:bg-white text-white dark:text-black py-4 rounded-2xl font-bold hover:bg-black dark:hover:bg-gray-200 transition-colors shadow-lg"
+        onClick={() => router.push('/eatery')} 
+        className="mt-12 text-gray-500 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors py-4 px-8"
       >
-        Go Back Home
+        ← Return to Menu
       </button>
     </div>
   );

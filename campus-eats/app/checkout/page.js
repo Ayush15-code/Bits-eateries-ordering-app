@@ -1,76 +1,53 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from '../lib/firebase';
+import { db, storage } from '../lib/firebase'; 
 import { 
-  collection, 
-  doc, 
-  runTransaction, 
-  serverTimestamp 
+  collection, doc, runTransaction, serverTimestamp, updateDoc 
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function Checkout() {
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
   const [shopId, setShopId] = useState('');
-  const [isHydrated, setIsHydrated] = useState(false); // NEW: Safety check
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [generatedUpiLink, setGeneratedUpiLink] = useState('');
+  const [lastCreatedOrderId, setLastCreatedOrderId] = useState('');
+  const [screenshot, setScreenshot] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const router = useRouter();
 
-  // 1. Initial Load: Read from storage ONLY ONCE on mount
   useEffect(() => {
-    try {
-      const savedCart = JSON.parse(localStorage.getItem('pending_cart') || '[]');
-      const savedShopId = localStorage.getItem('pending_shop_id') || '';
-      
-      setCart(savedCart);
-      setShopId(savedShopId);
-      
-      // Mark as finished loading
-      setIsHydrated(true); 
-    } catch (err) {
-      console.error("Failed to load cart:", err);
-      setIsHydrated(true); // Still set to true so UI doesn't hang
-    }
+    const savedCart = JSON.parse(localStorage.getItem('pending_cart') || '[]');
+    const savedShopId = localStorage.getItem('pending_shop_id') || '';
+    setCart(savedCart);
+    setShopId(savedShopId);
+    setIsHydrated(true);
   }, []);
 
-  // 2. Sync State to LocalStorage: Only runs AFTER hydration
   useEffect(() => {
-    if (!isHydrated) return; // STOP: Don't let initial empty state overwrite storage
-
+    if (!isHydrated) return;
     const newTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
     setTotal(newTotal);
-    
-    if (cart.length > 0) {
-      localStorage.setItem('pending_cart', JSON.stringify(cart));
-      localStorage.setItem('pending_total', newTotal.toString());
-      localStorage.setItem('pending_shop_id', shopId);
-    } else {
-      // If user removes everything manually on this screen
-      localStorage.removeItem('pending_cart');
-      localStorage.removeItem('pending_total');
-      localStorage.removeItem('pending_shop_id');
-    }
-  }, [cart, isHydrated, shopId]);
+    localStorage.setItem('pending_cart', JSON.stringify(cart));
+  }, [cart, isHydrated]);
 
-  // 3. Grouping Logic for UI Display
   const groupedItems = cart.reduce((acc, item) => {
-    const itemId = item.id || item.itemName || item.name || 'temp-id';
+    const itemId = item.id || item.itemName || item.name;
     const existing = acc.find(i => (i.id || i.itemName || i.name) === itemId);
-    
     if (existing) {
       existing.quantity += 1;
     } else {
-      acc.push({ 
-        ...item, 
-        id: itemId, 
-        displayName: item.itemName || item.name || "Item", 
-        quantity: 1 
-      });
+      acc.push({ ...item, quantity: 1, displayName: item.itemName || item.name });
     }
     return acc;
   }, []);
 
-  // 4. Quantity Handlers
   const addItem = (item) => {
     const { quantity, displayName, ...originalItem } = item;
     setCart(prev => [...prev, originalItem]);
@@ -84,11 +61,10 @@ export default function Checkout() {
       setCart(newCart);
     }
   };
-  
-  // 5. Final Payment: Handle Cleanup here
+
   const handleFinalPayment = async () => {
     if (cart.length === 0) return;
-
+    
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const counterRef = doc(db, "internal", "order_counter");
@@ -96,14 +72,20 @@ export default function Checkout() {
 
       const newOrderData = await runTransaction(db, async (transaction) => {
         const counterSnap = await transaction.get(counterRef);
+        
         let nextId = 1;
         if (counterSnap.exists()) {
           const data = counterSnap.data();
           if (data.lastDate === todayStr) {
-            nextId = data.currentCount + 1;
+            nextId = (data.currentCount || 0) + 1;
           }
         }
-        transaction.set(counterRef, { currentCount: nextId, lastDate: todayStr }, { merge: true });
+
+        // Initialize or update counter
+        transaction.set(counterRef, { 
+          currentCount: nextId, 
+          lastDate: todayStr 
+        }, { merge: true });
 
         const newOrderRef = doc(ordersCol);
         transaction.set(newOrderRef, {
@@ -112,106 +94,128 @@ export default function Checkout() {
           total: total,
           status: "AWAITING_PAYMENT",
           createdAt: serverTimestamp(),
-          dateStr: todayStr,
-          shopId: shopId
+          // CRITICAL: Fallback shopId to prevent transaction failure
+          shopId: shopId || "unknown_shop" 
         });
+
         return { docId: newOrderRef.id, numericId: nextId };
       });
 
-      // --- CLEANUP START ---
+      const upi = `upi://pay?pa=tushar.nandal678@okhdfcbank&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}&tr=${newOrderData.docId}&mc=5411`;
+      setGeneratedUpiLink(upi);
+      setLastCreatedOrderId(newOrderData.docId);
+      setShowPaymentOptions(true);
+      
       localStorage.removeItem('pending_cart');
-      localStorage.removeItem('pending_total');
-      localStorage.removeItem('pending_shop_id');
-      
-      localStorage.setItem('last_order_doc_id', newOrderData.docId);
-      
-      try {
-        const existingHistory = JSON.parse(localStorage.getItem('order_history') || '[]');
-        // Add new order ID to the front of the list
-        const updatedHistory = [newOrderData.docId, ...existingHistory];
-        // Keep only the last 50 orders to prevent storage bloat
-        localStorage.setItem('order_history', JSON.stringify(updatedHistory.slice(0, 50)));
-      } catch (err) {
-        console.error("Failed to update order history storage:", err);
-      }
-      
-      setCart([]);
-       // This triggers the final storage wipe
-      // --- CLEANUP END ---
-
-      const upiLink = `upi://pay?pa=your-upi-id@okicici&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
-      
-      setTimeout(() => {
-        window.location.href = upiLink;
-      }, 150);
-
-      router.push(`/status/${newOrderData.docId}`);
     } catch (e) {
-      console.error("Order process failed:", e);
-      alert("Error creating order. Please try again.");
+      console.error("Order Error:", e);
+      alert(`Order failed: ${e.message}. Check if your Firestore 'internal/order_counter' exists.`);
     }
   };
 
-  // If we haven't read from localStorage yet, show a clean loading state 
-  // to prevent the "Empty Cart" text from flashing
+  const handleSubmitScreenshot = async () => {
+    if (!screenshot) return alert("Please select a screenshot first!");
+    setIsUploading(true);
+    try {
+      const storageRef = ref(storage, `screenshots/${lastCreatedOrderId}`);
+      await uploadBytes(storageRef, screenshot);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      await updateDoc(doc(db, "orders", lastCreatedOrderId), {
+        screenshotUrl: downloadURL,
+        status: "AWAITING_VERIFICATION"
+      });
+
+      router.push(`/status/${lastCreatedOrderId}`);
+    } catch (error) {
+      console.error("Upload Error:", error);
+      alert("Upload failed. Make sure Storage is enabled in Firebase Console.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   if (!isHydrated) return null;
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen transition-colors">
+    <div className="max-w-md mx-auto p-6 min-h-screen bg-gray-50 dark:bg-gray-950">
       <button onClick={() => router.back()} className="mb-4 text-orange-600 font-bold hover:underline">
-        ← Edit Order
+        ← Add More Items
       </button>
-      
-      <h1 className="text-2xl font-black mb-6 dark:text-white">Review Items</h1>
-      
-      <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm mb-6 border border-gray-100 dark:border-gray-800">
+
+      <h1 className="text-3xl font-black mb-6 dark:text-white">Checkout</h1>
+
+      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 shadow-sm mb-6 border border-gray-100 dark:border-gray-800">
         {groupedItems.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-gray-500 dark:text-gray-400 italic">Your cart is empty</p>
-            <button onClick={() => router.back()} className="mt-4 text-orange-600 text-sm font-bold underline">
-              Go back to menu
-            </button>
-          </div>
+          <p className="text-center py-10 text-gray-400">Your cart is empty</p>
         ) : (
-          groupedItems.map((item) => (
-            <div key={item.id} className="flex items-center justify-between py-4 border-b border-gray-50 dark:border-gray-800 last:border-0">
-              <div className="flex-1 pr-4">
-                <h3 className="text-gray-800 dark:text-gray-100 font-bold leading-tight">{item.displayName}</h3>
-                <p className="text-gray-400 text-xs mt-1">₹{item.price} each</p>
-              </div>
+          <div className="space-y-4">
+            {groupedItems.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-800 last:border-0">
+                <div className="flex-1">
+                  <h3 className="font-bold dark:text-white">{item.displayName}</h3>
+                  <p className="text-xs text-gray-400">₹{item.price} each</p>
+                </div>
+                
+                <div className="flex items-center gap-3 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-2xl mr-4">
+                  <button onClick={() => removeItem(item.id || item.itemName || item.name)} className="text-orange-600 font-black px-1"> − </button>
+                  <span className="text-sm font-black dark:text-white">{item.quantity}</span>
+                  <button onClick={() => addItem(item)} className="text-green-600 font-black px-1"> + </button>
+                </div>
 
-              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-inner">
-                <button onClick={() => removeItem(item.id)} className="text-orange-600 font-black text-xl w-6 h-6 flex items-center justify-center transition-colors active:scale-90">−</button>
-                <span className="text-gray-800 dark:text-white font-black text-sm w-5 text-center">{item.quantity}</span>
-                <button onClick={() => addItem(item)} className="text-green-600 font-black text-xl w-6 h-6 flex items-center justify-center transition-colors active:scale-90">+</button>
+                <div className="text-right font-black dark:text-white w-16">
+                  ₹{item.price * item.quantity}
+                </div>
               </div>
-
-              <div className="ml-4 w-20 text-right">
-                <span className="font-black dark:text-white text-gray-900">₹{item.price * item.quantity}</span>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
 
-        <div className="flex justify-between mt-4 text-xl font-black border-t border-gray-100 dark:border-gray-800 pt-6">
-          <span className="dark:text-white">Total Amount</span>
-          <span className="text-orange-600 dark:text-orange-500">₹{total}</span>
+        <div className="flex justify-between mt-6 pt-6 border-t dark:border-gray-800">
+          <span className="text-xl font-black dark:text-white">Total</span>
+          <span className="text-xl font-black text-orange-600">₹{total}</span>
         </div>
-      </div>
-
-      <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl mb-8 border border-orange-100 dark:border-orange-800/30 text-center">
-        <p className="text-[11px] text-orange-800 dark:text-orange-300 font-bold leading-relaxed">
-          Payment is verified manually. Stay on the status page after paying.
-        </p>
       </div>
 
       <button 
         onClick={handleFinalPayment} 
         disabled={cart.length === 0}
-        className="w-full bg-green-600 dark:bg-green-500 text-white p-5 rounded-3xl font-black shadow-xl transition-all active:scale-95 text-lg disabled:opacity-50 disabled:grayscale mb-4"
+        className="w-full bg-green-600 text-white p-5 rounded-[2rem] font-black shadow-xl active:scale-95 transition-all disabled:opacity-50"
       >
-        Pay ₹{total} via UPI
+        Pay ₹{total}
       </button>
+
+      {showPaymentOptions && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl">
+            <h2 className="text-xl font-black text-center mb-6 dark:text-white">Verify Payment</h2>
+            <div className="space-y-6">
+              <button onClick={() => window.location.href = generatedUpiLink} className="w-full bg-orange-600 text-white p-4 rounded-2xl font-black">
+                📱 Open UPI App
+              </button>
+              <div className="flex justify-center bg-white p-4 rounded-3xl border-2 border-gray-50">
+                <QRCodeSVG value={generatedUpiLink} size={160} />
+              </div>
+              <div className="border-t dark:border-gray-800 pt-6">
+                <p className="text-[10px] font-black text-blue-600 uppercase mb-3 text-center tracking-widest">Upload Screenshot</p>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => setScreenshot(e.target.files[0])} 
+                  className="block w-full text-xs text-gray-500"
+                />
+              </div>
+              <button 
+                onClick={handleSubmitScreenshot} 
+                disabled={!screenshot || isUploading}
+                className="w-full bg-black dark:bg-white dark:text-black text-white py-5 rounded-2xl font-black disabled:opacity-30 uppercase tracking-widest text-sm"
+              >
+                {isUploading ? "Uploading..." : "Confirm & Send"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -78,26 +78,42 @@ export default function EateriesList() {
         </div>
       </header>
 
-      {/* --- LIVE ORDER TRACKER (Existing) --- */}
-      {activeOrder && isBarVisible && (
-        <div className="fixed bottom-32 left-0 right-0 z-50 px-4 flex justify-center">
-          <div className="w-full max-w-md bg-orange-600 text-white p-4 rounded-[2rem] shadow-2xl flex items-center justify-between border-2 border-orange-400 animate-in fade-in slide-in-from-bottom-4">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
-              <div className="text-left">
-                <p className="text-[10px] opacity-80 uppercase font-bold tracking-widest">Tracking Order</p>
-                <p className="font-bold text-sm">{activeOrder.status.replace('_', ' ')}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link href={`/status/${activeOrder.id}`}>
-                <button className="bg-white text-orange-600 px-5 py-2.5 rounded-2xl font-black text-xs shadow-sm">Track</button>
-              </Link>
-              <button onClick={() => setIsBarVisible(false)} className="w-8 h-8 flex items-center justify-center bg-black/10 rounded-full">✕</button>
-            </div>
-          </div>
+      {/* --- LIVE ORDER TRACKER --- */}
+{activeOrder && isBarVisible && !['COLLECTED', 'REJECTED', 'ARCHIVED'].includes(activeOrder.status) && (
+  <div className="fixed bottom-32 left-0 right-0 z-50 px-4 flex justify-center">
+    <div className="w-full max-w-md bg-orange-600 text-white p-4 rounded-[2.5rem] shadow-2xl flex items-center justify-between border-2 border-orange-400 animate-in fade-in slide-in-from-bottom-4 transition-all">
+      <div className="flex items-center gap-3 pl-2">
+        {/* Status Indicator Dot */}
+        <div className={`w-3 h-3 rounded-full animate-pulse ${
+          activeOrder.status === 'CONFIRMED' ? 'bg-green-300' : 'bg-white'
+        }`} />
+        
+        <div className="text-left">
+          <p className="text-[10px] opacity-90 uppercase font-black tracking-widest leading-tight">
+            Order #{activeOrder.orderId}
+          </p>
+          <p className="font-bold text-sm tracking-tight capitalize">
+            {activeOrder.status.toLowerCase().replace('_', ' ')}...
+          </p>
         </div>
-      )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Link href={`/status/${activeOrder.id}`}>
+          <button className="bg-white text-orange-600 px-6 py-2.5 rounded-2xl font-black text-xs shadow-md active:scale-95 transition-transform">
+            TRACK
+          </button>
+        </Link>
+        <button 
+          onClick={() => setIsBarVisible(false)} 
+          className="w-10 h-10 flex items-center justify-center bg-black/10 hover:bg-black/20 rounded-full transition-colors"
+        >
+          <span className="text-xs">✕</span>
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* --- NEW: LIVE CART BANNER --- */}
       {cart.length > 0 && (
