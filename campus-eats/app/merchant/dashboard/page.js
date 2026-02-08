@@ -63,21 +63,46 @@ export default function MerchantDash() {
       where("status", "in", ["AWAITING_PAYMENT", "AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED", "COLLECTED", "REJECTED"])
     );
     
-    const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
-      if (!snap.metadata.hasPendingWrites && snap.docChanges().some(c => c.type === 'added')) {
-        audioRef.current?.play().catch(() => {});
-      }
+    // 1. Outside the useEffect or at the top of the component, track the mount time
+const pageLoadTime = useRef(new Date()); 
 
-      const sortedOrders = snap.docs
-        .map(d => ({ ...d.data(), id: d.id }))
-        .sort((a, b) => {
-            if (a.status === 'AWAITING_VERIFICATION' && b.status !== 'AWAITING_VERIFICATION') return -1;
-            if (a.status !== 'AWAITING_VERIFICATION' && b.status === 'AWAITING_VERIFICATION') return 1;
-            return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
-        });
-        
-      setOrders(sortedOrders);
+// ... inside the useEffect [merchantShopId] ...
+
+const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
+  // Logic for Sound Trigger
+  snap.docChanges().forEach((change) => {
+    const orderData = change.doc.data();
+    
+    // Get the timestamp of the order (fallback to now if it's currently being written)
+    const orderTime = orderData.createdAt?.toDate ? orderData.createdAt.toDate() : new Date();
+
+    // TRIGGER CONDITIONS:
+    // 1. Must be "AWAITING_VERIFICATION"
+    // 2. Must have the screenshot base64 data
+    // 3. IMPORTANT: Must have happened AFTER the merchant opened the dashboard
+    const isVefificationStatus = orderData.status === "AWAITING_VERIFICATION";
+    const hasScreenshot = !!orderData.screenshotBase64;
+    const isNewSinceLoad = orderTime > pageLoadTime.current;
+
+    if (isVefificationStatus && hasScreenshot && isNewSinceLoad) {
+      // Only play sound for real-time updates
+      audioRef.current?.play().catch(() => {
+        console.log("Audio blocked: Merchant must click on page once to enable sound.");
+      });
+    }
+  });
+
+  // Keep your existing sorting logic
+  const sortedOrders = snap.docs
+    .map(d => ({ ...d.data(), id: d.id }))
+    .sort((a, b) => {
+        if (a.status === 'AWAITING_VERIFICATION' && b.status !== 'AWAITING_VERIFICATION') return -1;
+        if (a.status !== 'AWAITING_VERIFICATION' && b.status === 'AWAITING_VERIFICATION') return 1;
+        return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
     });
+    
+  setOrders(sortedOrders);
+});
 
     const unsubShop = onSnapshot(fireDoc(db, "shops", merchantShopId), (snap) => {
       if (snap.exists()) setShopStatus(snap.data().isOpen);

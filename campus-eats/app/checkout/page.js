@@ -31,9 +31,38 @@ export default function Checkout() {
     if (!isHydrated) return;
     const newTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
     setTotal(newTotal);
+    // Keep localStorage in sync if we add/remove items here
+    localStorage.setItem('pending_cart', JSON.stringify(cart));
   }, [cart, isHydrated]);
 
-  // --- COMPRESSION ENGINE ---
+  // --- ADD/MINUS LOGIC ---
+  const groupedItems = cart.reduce((acc, item) => {
+    const itemId = item.id || item.itemName || item.name;
+    const existing = acc.find(i => (i.id || i.itemName || i.name) === itemId);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      acc.push({ ...item, quantity: 1, displayName: item.itemName || item.name });
+    }
+    return acc;
+  }, []);
+
+  const addItem = (item) => {
+    // Strip quantity/displayName to keep the raw item structure
+    const { quantity, displayName, ...originalItem } = item;
+    setCart(prev => [...prev, originalItem]);
+  };
+
+  const removeItem = (targetId) => {
+    const index = cart.findIndex(item => (item.id || item.itemName || item.name) === targetId);
+    if (index > -1) {
+      const newCart = [...cart];
+      newCart.splice(index, 1);
+      setCart(newCart);
+    }
+  };
+
+  // --- COMPRESSION ENGINE (UNTOUCHED) ---
   const compressImage = async (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -111,15 +140,63 @@ export default function Checkout() {
 
   return (
     <div className="max-w-md mx-auto p-6 min-h-screen bg-gray-50 dark:bg-gray-950">
-      <button onClick={() => router.back()} className="mb-4 text-orange-600 font-bold tracking-tight uppercase text-xs">← Add More</button>
-      <h1 className="text-3xl font-black mb-6 dark:text-white">Checkout</h1>
+      <button onClick={() => router.back()} className="mb-4 text-orange-600 font-bold tracking-tight uppercase text-xs flex items-center gap-1">
+        <ChevronLeft size={14}/> Add More
+      </button>
+      
+      <h1 className="text-3xl font-black mb-6 dark:text-white tracking-tight">Checkout</h1>
+
+      {/* --- CART ITEMS SECTION --- */}
       <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 shadow-sm mb-6 border border-gray-100 dark:border-gray-800">
-        <div className="flex justify-between items-center py-4">
+        {groupedItems.length === 0 ? (
+          <p className="text-center py-6 text-gray-400 font-bold">Cart is empty</p>
+        ) : (
+          <div className="space-y-4 mb-6">
+            {groupedItems.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-800 last:border-0 last:pb-0">
+                <div className="flex-1">
+                  <h3 className="font-bold dark:text-white">{item.displayName}</h3>
+                  <p className="text-[10px] text-gray-400 font-bold tracking-widest">₹{item.price} EACH</p>
+                </div>
+                
+                {/* Add/Minus Controls */}
+                <div className="flex items-center gap-3 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-2xl mr-4">
+                  <button 
+                    onClick={() => removeItem(item.id || item.itemName || item.name)} 
+                    className="text-orange-600 hover:scale-110 active:scale-90 transition-transform"
+                  >
+                    <Minus size={16} strokeWidth={3} />
+                  </button>
+                  <span className="text-sm font-black dark:text-white w-4 text-center">{item.quantity}</span>
+                  <button 
+                    onClick={() => addItem(item)} 
+                    className="text-green-600 hover:scale-110 active:scale-90 transition-transform"
+                  >
+                    <Plus size={16} strokeWidth={3} />
+                  </button>
+                </div>
+
+                <div className="text-right font-black dark:text-white min-w-[50px]">
+                  ₹{item.price * item.quantity}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-between items-center pt-4 border-t-2 border-gray-50 dark:border-gray-800">
           <span className="text-xl font-black dark:text-white uppercase">Total</span>
           <span className="text-2xl font-black text-orange-600">₹{total}</span>
         </div>
       </div>
-      <button onClick={handleFinalPayment} className="w-full bg-orange-600 text-white p-5 rounded-3xl font-black shadow-xl active:scale-95 transition-all">PROCEED TO PAY</button>
+
+      <button 
+        onClick={handleFinalPayment} 
+        disabled={cart.length === 0}
+        className="w-full bg-orange-600 text-white p-5 rounded-3xl font-black shadow-xl active:scale-95 transition-all disabled:opacity-50 uppercase tracking-widest"
+      >
+        PROCEED TO PAY
+      </button>
 
       {showPaymentOptions && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-0 backdrop-blur-sm animate-in fade-in duration-300">
