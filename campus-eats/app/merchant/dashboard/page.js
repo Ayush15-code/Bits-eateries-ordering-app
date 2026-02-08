@@ -13,7 +13,7 @@ import {
   updateDoc as fireUpdateDoc,
 } from 'firebase/firestore';
 import ThemeToggle from '../../components/ThemeToggle';
-import { Eye, X } from 'lucide-react'; // Added icons for the viewer
+import { Eye, X } from 'lucide-react'; 
 
 export default function MerchantDash() {
   const [orders, setOrders] = useState([]);
@@ -23,12 +23,13 @@ export default function MerchantDash() {
   const [merchantShopId, setMerchantShopId] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [shopStatus, setShopStatus] = useState(true);
-  
-  // State for the Base64 Screenshot Viewer
   const [viewingScreenshot, setViewingScreenshot] = useState(null); 
 
   const router = useRouter();
   const audioRef = useRef(null);
+  
+  // --- FIXED: MOVED TO TOP LEVEL ---
+  const pageLoadTime = useRef(new Date()); 
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -63,46 +64,38 @@ export default function MerchantDash() {
       where("status", "in", ["AWAITING_PAYMENT", "AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED", "COLLECTED", "REJECTED"])
     );
     
-    // 1. Outside the useEffect or at the top of the component, track the mount time
-const pageLoadTime = useRef(new Date()); 
+    const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
+      // --- CORRECTED SOUND LOGIC ---
+      snap.docChanges().forEach((change) => {
+        const orderData = change.doc.data();
+        
+        // Use the order's timestamp, or current time if it's still being written
+        const orderTime = orderData.createdAt?.toDate ? orderData.createdAt.toDate() : new Date();
 
-// ... inside the useEffect [merchantShopId] ...
+        // 1. Must be "AWAITING_VERIFICATION"
+        // 2. Must have the screenshot base64 data
+        // 3. Must have happened AFTER the merchant opened the dashboard
+        const isVerification = orderData.status === "AWAITING_VERIFICATION";
+        const hasScreenshot = !!orderData.screenshotBase64;
+        const isNewSinceLoad = orderTime > pageLoadTime.current;
 
-const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
-  // Logic for Sound Trigger
-  snap.docChanges().forEach((change) => {
-    const orderData = change.doc.data();
-    
-    // Get the timestamp of the order (fallback to now if it's currently being written)
-    const orderTime = orderData.createdAt?.toDate ? orderData.createdAt.toDate() : new Date();
-
-    // TRIGGER CONDITIONS:
-    // 1. Must be "AWAITING_VERIFICATION"
-    // 2. Must have the screenshot base64 data
-    // 3. IMPORTANT: Must have happened AFTER the merchant opened the dashboard
-    const isVefificationStatus = orderData.status === "AWAITING_VERIFICATION";
-    const hasScreenshot = !!orderData.screenshotBase64;
-    const isNewSinceLoad = orderTime > pageLoadTime.current;
-
-    if (isVefificationStatus && hasScreenshot && isNewSinceLoad) {
-      // Only play sound for real-time updates
-      audioRef.current?.play().catch(() => {
-        console.log("Audio blocked: Merchant must click on page once to enable sound.");
+        if (isVerification && hasScreenshot && isNewSinceLoad) {
+          audioRef.current?.play().catch(() => {
+            console.log("Audio blocked: Click anywhere to enable sound.");
+          });
+        }
       });
-    }
-  });
 
-  // Keep your existing sorting logic
-  const sortedOrders = snap.docs
-    .map(d => ({ ...d.data(), id: d.id }))
-    .sort((a, b) => {
-        if (a.status === 'AWAITING_VERIFICATION' && b.status !== 'AWAITING_VERIFICATION') return -1;
-        if (a.status !== 'AWAITING_VERIFICATION' && b.status === 'AWAITING_VERIFICATION') return 1;
-        return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+      const sortedOrders = snap.docs
+        .map(d => ({ ...d.data(), id: d.id }))
+        .sort((a, b) => {
+            if (a.status === 'AWAITING_VERIFICATION' && b.status !== 'AWAITING_VERIFICATION') return -1;
+            if (a.status !== 'AWAITING_VERIFICATION' && b.status === 'AWAITING_VERIFICATION') return 1;
+            return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+        });
+        
+      setOrders(sortedOrders);
     });
-    
-  setOrders(sortedOrders);
-});
 
     const unsubShop = onSnapshot(fireDoc(db, "shops", merchantShopId), (snap) => {
       if (snap.exists()) setShopStatus(snap.data().isOpen);
@@ -120,6 +113,7 @@ const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
     };
   }, [merchantShopId]);
 
+  // Rest of your groupedItems, handleLogout, handleClearHistory, etc. (UNCHANGED)
   const getGroupedItems = (items) => {
     return (items || []).reduce((acc, item) => {
       const name = item.itemName || item.name || "Item";
@@ -151,7 +145,6 @@ const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
   const handlePaymentStatus = async (id, newStatus) => {
     try {
       const updateData = { status: newStatus };
-      // Tracking timelines
       if (newStatus === "CONFIRMED" || newStatus === "ACCEPTED") updateData.confirmedAt = new Date().toISOString();
       else if (newStatus === "COLLECTED") updateData.collectedAt = new Date().toISOString();
       await fireUpdateDoc(fireDoc(db, "orders", id), updateData);
@@ -177,6 +170,7 @@ const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
   return (
     <div className="max-w-md mx-auto bg-gray-100 dark:bg-gray-950 min-h-screen pb-20 font-sans transition-colors duration-300">
       
+      {/* Header UI (UNCHANGED) */}
       <div className="bg-white dark:bg-gray-900 p-6 shadow-sm sticky top-0 z-10 border-b dark:border-gray-800">
         <div className="flex justify-between items-center">
           <div>
@@ -232,7 +226,6 @@ const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
                       </span>
                     </div>
 
-                    {/* Base64 Proof Viewer Button */}
                     {isVerification && o.screenshotBase64 && (
                       <div className="mb-4">
                         <button 
@@ -275,6 +268,7 @@ const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
           </div>
         )}
 
+        {/* History Tab (UNCHANGED) */}
         {activeTab === 'history' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
@@ -299,6 +293,7 @@ const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
           </div>
         )}
 
+        {/* Menu Tab (UNCHANGED) */}
         {activeTab === 'manage' && (
           <div className="space-y-6">
             <div className={`p-6 rounded-3xl border-2 transition-all ${shopStatus ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/30 shadow-inner' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 shadow-inner'}`}>
@@ -321,7 +316,7 @@ const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
         )}
       </div>
 
-      {/* --- TIMELINE MODAL --- */}
+      {/* Timeline Modal (UNCHANGED) */}
       {selectedHistoryOrder && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center p-0 backdrop-blur-sm transition-all" onClick={() => setSelectedHistoryOrder(null)}>
           <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-t-[40px] p-8 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-300" onClick={e => e.stopPropagation()}>
@@ -337,7 +332,7 @@ const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
         </div>
       )}
 
-      {/* --- BASE64 PROOF MODAL --- */}
+      {/* Proof Modal (UNCHANGED) */}
       {viewingScreenshot && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-md" onClick={() => setViewingScreenshot(null)}>
           <div className="relative max-w-sm w-full bg-white dark:bg-gray-900 rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
