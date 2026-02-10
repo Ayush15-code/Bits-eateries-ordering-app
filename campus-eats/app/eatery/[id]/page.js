@@ -58,7 +58,7 @@ export default function Menu() {
       localStorage.removeItem('pending_total');
     }
   }, [cart, isHydrated, id]);
-x
+
   const total = cart.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
 
   // --- UPDATED LOGIC ---
