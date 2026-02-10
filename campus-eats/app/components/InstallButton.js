@@ -7,25 +7,20 @@ export default function InstallButton() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
+    const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsVisible(true);
-    });
-
-    window.addEventListener('appinstalled', () => {
-      setIsVisible(false);
-      setDeferredPrompt(null);
-    });
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsVisible(false);
-    }
+    if (outcome === 'accepted') setIsVisible(false);
     setDeferredPrompt(null);
   };
 
@@ -34,9 +29,9 @@ export default function InstallButton() {
   return (
     <button 
       onClick={handleInstallClick}
-      className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase shadow-lg active:scale-95 transition-all"
+      className="flex items-center gap-2 bg-orange-600 text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase shadow-lg active:scale-95 transition-all animate-bounce"
     >
-      <Download size={16} /> Install App
+      <Download size={14} /> Install App
     </button>
   );
 }
