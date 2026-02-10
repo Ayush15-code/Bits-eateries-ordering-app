@@ -38,7 +38,7 @@ export default function EateriesList() {
       <header className="mb-8">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h1 className="text-4xl font-black text-orange-600 tracking-tighter uppercase leading-none">CampusEats</h1>
+            <h1 className="text-4xl font-black text-orange-600 tracking-tighter leading-none">CampusEats</h1>
             <p className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">BITS Pilani, Goa Campus</p>
           </div>
 
