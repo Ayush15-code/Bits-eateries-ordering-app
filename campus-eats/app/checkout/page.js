@@ -114,7 +114,7 @@ export default function Checkout() {
         return { docId: newOrderRef.id, numericId: nextId };
       });
 
-      setGeneratedUpiLink(`upi://pay?pa=tushar.nandal678@okhdfcbank&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}&tr=${newOrderData.docId}`);
+      setGeneratedUpiLink(`upi://pay?pa=ayush12123a@okhdfcbank&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}&tr=${newOrderData.docId}`);
       setLastCreatedOrderId(newOrderData.docId);
       setShowPaymentOptions(true);
       localStorage.removeItem('pending_cart');
