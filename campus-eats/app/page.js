@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       // Validate Domain
       const email = user.email || "";
-      const isBitsEmail = email.endsWith("@bits-pilani.ac.in") || 
+      const isBitsEmail = email.endsWith("@goa.bits-pilani.ac.in") || 
                          email.endsWith(".bits-pilani.ac.in");
 
       if (!isBitsEmail) {
