@@ -307,10 +307,27 @@ export default function MerchantDash() {
                 className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 dark:text-white appearance-none"
                 value={newItem.category} onChange={(e) => setNewItem({...newItem, category: e.target.value})}
               >
-                <option value="General">General</option>
-                <option value="Snacks">Snacks</option>
-                <option value="Beverages">Beverages</option>
-                <option value="Meals">Meals</option>
+                <option value="Burger">Burger</option>
+                <option value="Shawarma">Shawarma</option>
+                <option value="Maggi">Maggi</option>
+                <option value="Rice">Rice</option>
+                <option value="Fries">Fries</option>
+                <option value="Momos">Momos</option>
+                <option value="Roll">Roll</option>
+                <option value="Omelette">Omelette</option>
+                <option value="Sandwich">Sandwich</option>
+                <option value="Protein">Protein</option>
+                <option value="Tandoori">Tandoori</option>
+                <option value="Maincourse">Maincourse</option>
+                <option value="Shake">Shake</option>
+                <option value="Juice">Juice</option>
+                <option value="Dosa">Dosa</option>
+                <option value="RavaDosa">RavaDosa</option>
+                <option value="Uthappam">Uthappam</option>
+                <option value="Frankies">Frankies</option>
+                <option value="HotBeverages">HotBeverages</option>
+                <option value="QuickBites">QuickBites</option>
+                <option value="ColdBeverages">ColdBeverages</option>
               </select>
               <div className="flex gap-2 pt-4">
                 <button type="button" onClick={() => setIsAddingItem(false)} className="flex-1 py-4 font-bold text-gray-400 uppercase text-xs">Cancel</button>
