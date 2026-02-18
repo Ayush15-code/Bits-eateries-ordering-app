@@ -5,6 +5,7 @@ export const metadata = {
   description: 'BITS Goa Eatery Management',
 };
 
+
 // This resolves the "Unsupported metadata themeColor" warning
 export const viewport = {
   themeColor: '#ea580c', 

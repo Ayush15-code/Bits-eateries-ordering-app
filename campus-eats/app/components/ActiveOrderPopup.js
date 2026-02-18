@@ -17,16 +17,28 @@ export default function ActiveOrderPopup() {
     let unsub = null;
 
     const initListener = () => {
-      // Get the last order from local storage
+      // Get history array
       const history = JSON.parse(localStorage.getItem('order_history') || '[]');
-      const lastOrderId = history[history.length - 1];
+      
+      // Get the last item (newest order is usually at index 0 because we used [newEntry, ...history])
+      // Change to history[0] because we are now prepending newest orders
+      const lastOrderData = history[0]; 
 
-      if (!lastOrderId) {
+      if (!lastOrderData) {
+        setActiveOrder(null);
+        return;
+      }
+
+      // FIX: Extract only the string ID if lastOrderData is an object
+      const lastOrderId = typeof lastOrderData === 'object' ? lastOrderData.id : lastOrderData;
+
+      if (!lastOrderId || typeof lastOrderId !== 'string') {
         setActiveOrder(null);
         return;
       }
 
       // Listen for updates on the student's active order
+      // Using the cleaned string ID here
       unsub = onSnapshot(doc(db, "orders", lastOrderId), (snap) => {
         if (snap.exists()) {
           const data = snap.data();
@@ -52,7 +64,7 @@ export default function ActiveOrderPopup() {
 
   if (!activeOrder) return null;
 
-  // 2. Extracted config function to fix the Build Error
+  // 2. Extracted config function
   const getStatusConfig = (status) => {
     switch (status) {
       case 'AWAITING_VERIFICATION': 
