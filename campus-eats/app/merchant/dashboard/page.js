@@ -268,7 +268,19 @@ export default function MerchantDash() {
             <div className={`p-6 rounded-3xl border-2 ${shopStatus ? 'bg-green-50 border-green-200 dark:bg-green-950/20' : 'bg-red-50 border-red-200'}`}>
               <div className="flex justify-between items-center">
                 <h3 className={`font-black uppercase text-[10px] tracking-widest ${shopStatus ? 'text-green-800' : 'text-red-800'}`}>Store {shopStatus ? 'Online' : 'Offline'}</h3>
-                <button onClick={() => fireUpdateDoc(fireDoc(db, "shops", merchantShopId), { isOpen: !shopStatus })} className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-black text-[10px] uppercase shadow-md">Toggle Status</button>
+                  
+<button 
+  onClick={() => {
+    if (!merchantShopId) {
+      alert("Shop ID not loaded yet!");
+      return;
+    }
+    fireUpdateDoc(fireDoc(db, "shops", merchantShopId), { isOpen: !shopStatus });
+  }} 
+  className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-black text-[10px] uppercase shadow-md"
+>
+  Toggle Status
+</button>
               </div>
             </div>
 
