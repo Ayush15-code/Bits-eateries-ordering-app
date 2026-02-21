@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc } from 'firebase/firestore'; // Added doc
 import Link from 'next/link';
 import ThemeToggle from '../components/ThemeToggle';
 import InstallButton from '../components/InstallButton'; 
@@ -15,10 +15,13 @@ export default function EateriesList() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
   
+  // --- NEW STATE FOR STATUS BAR ---
+  const [activeOrder, setActiveOrder] = useState(null);
+  
   const router = useRouter();
 
   useEffect(() => {
-    // Real-time listener for shops
+    // 1. Real-time listener for shops (Existing)
     const unsubShops = onSnapshot(collection(db, "shops"), (snap) => {
       const shopsData = snap.docs.map(doc => ({
         id: doc.id,
@@ -27,29 +30,63 @@ export default function EateriesList() {
       setShops(shopsData);
     });
 
-    // Hydrating state from localStorage
+    // 2. Hydrating state (Updated to check order_history_v2)
     const savedCart = JSON.parse(localStorage.getItem('pending_cart') || '[]');
     const savedTotal = localStorage.getItem('pending_total') || '0';
-    const savedHistory = JSON.parse(localStorage.getItem('order_history') || '[]');
+    
+    // Yahan hum primary history 'order_history_v2' ko check kar rahe hain active bar ke liye
+    const savedHistoryV2 = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
+    const savedHistoryLegacy = JSON.parse(localStorage.getItem('order_history') || '[]');
     
     setCart(savedCart);
     setCartTotal(Number(savedTotal));
-    setOrderHistory(savedHistory);
+    setOrderHistory(savedHistoryV2.length > 0 ? savedHistoryV2 : savedHistoryLegacy);
 
-    return () => unsubShops();
+    // --- STATUS BAR OPTIMIZED LISTENER ---
+    let unsubActiveOrder = () => {};
+    if (savedHistoryV2.length > 0) {
+      const latest = savedHistoryV2[0];
+      
+      // Optimization: Sirf 30 min se kam purane orders check karo
+      const isRecent = !latest.timestamp || (Date.now() - latest.timestamp < 30 * 60 * 1000);
+
+      if (latest.status !== 'COLLECTED' && isRecent) {
+        unsubActiveOrder = onSnapshot(doc(db, "orders", latest.id), (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.status === 'COLLECTED') {
+              setActiveOrder(null);
+              // Local storage update to stop further reads
+              const updated = [...savedHistoryV2];
+              updated[0].status = 'COLLECTED';
+              localStorage.setItem('order_history_v2', JSON.stringify(updated));
+            } else {
+              setActiveOrder({ id: snap.id, ...data });
+            }
+          }
+        });
+      }
+    }
+
+    return () => {
+      unsubShops();
+      unsubActiveOrder();
+    };
   }, []);
 
   const clearHistory = () => {
     if (confirm("Delete all order history? This cannot be undone.")) {
       localStorage.removeItem('order_history');
+      localStorage.removeItem('order_history_v2'); // Clear both
       setOrderHistory([]);
+      setActiveOrder(null);
     }
   };
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen relative text-gray-900 dark:text-gray-100 transition-colors">
       
-      {/* --- SIDEBAR DRAWER --- */}
+      {/* --- SIDEBAR DRAWER (Old Logic Untouched) --- */}
       <div className={`fixed inset-0 z-[100] transition-visibility ${isSidebarOpen ? 'visible' : 'invisible'}`}>
         <div 
           className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}
@@ -80,15 +117,16 @@ export default function EateriesList() {
               {orderHistory.length > 0 ? [...orderHistory].map((order, idx) => {
                 const isObject = typeof order === 'object' && order !== null;
                 const orderId = isObject ? order.id : order;
-                
-                // Prioritizing the saved orderNumber
-                const displayNum = isObject && order.orderNumber ? order.orderNumber : (orderHistory.length - idx);
+                const displayNum = isObject && (order.orderId || order.orderNumber) ? (order.orderId || order.orderNumber) : (orderHistory.length - idx);
                 const orderTotal = isObject ? (order.total || order.totalPrice) : null;
 
                 return (
                   <div 
                     key={idx} 
-                    onClick={() => router.push(`/status/${orderId}`)} 
+                    onClick={() => {
+                        setIsSidebarOpen(false);
+                        router.push(`/status/${orderId}`);
+                    }} 
                     className="p-5 bg-gray-50 dark:bg-white/5 rounded-[2.2rem] flex flex-col gap-3 group cursor-pointer border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]"
                   >
                     <div className="flex justify-between items-start">
@@ -128,26 +166,24 @@ export default function EateriesList() {
               )}
             </div>
             
-            {/* --- PROFESSIONAL LOGOUT BUTTON (DEEP DOWN) --- */}
             <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/5 space-y-4">
               <button 
                 onClick={() => {
-                  if(confirm("Are you sure you want to logout? This will clear your cart and history.")) {
+                  if(confirm("Are you sure you want to logout?")) {
                     localStorage.clear(); 
                     window.location.href = "/";
                   }
                 }}
-                className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-500 rounded-[1.8rem] transition-all group active:scale-[0.98]"
+                className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-500/10 text-red-600 rounded-[1.8rem] transition-all group active:scale-[0.98]"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-600/20">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                   </div>
-                  <span className="text-[11px] font-black uppercase tracking-widest">Logout Account</span>
+                  <span className="text-[11px] font-black uppercase tracking-widest">Logout</span>
                 </div>
-                <ChevronRight size={14} className="opacity-40 group-hover:translate-x-1 transition-transform" />
+                <ChevronRight size={14} className="opacity-40" />
               </button>
-
               <p className="text-[8px] font-black text-gray-500 text-center uppercase tracking-[0.4em] opacity-60">CampusEats • BITS Goa</p>
             </div>
           </div>
@@ -160,12 +196,10 @@ export default function EateriesList() {
           <button onClick={() => setIsSidebarOpen(true)} className="w-12 h-12 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-700 dark:text-white active:scale-90 transition-all">
             <MenuIcon size={24} strokeWidth={2.5} />
           </button>
-
           <div className="text-center flex-1">
             <h1 className="text-3xl font-black text-orange-600 tracking-tighter leading-none italic">CampusEats</h1>
             <p className="text-gray-500 dark:text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mt-1">BITS GOA</p>
           </div>
-
           <div className="flex items-center gap-2">
             <InstallButton /> 
             <ThemeToggle />
@@ -200,7 +234,28 @@ export default function EateriesList() {
         ))}
       </div>
 
-      {/* --- CART BANNER --- */}
+      {/* --- STATUS BAR (OPTIMIZED) --- */}
+      {activeOrder && (
+        <div 
+          onClick={() => router.push(`/status/${activeOrder.id}`)}
+          className={`fixed left-0 right-0 z-50 px-4 flex justify-center transition-all duration-500 ${cart.length > 0 ? 'bottom-32' : 'bottom-8'}`}
+        >
+          <div className="w-full max-w-md bg-orange-600 text-white p-4 rounded-[2.2rem] shadow-2xl flex items-center justify-between border border-white/10 active:scale-[0.98] transition-all animate-in slide-in-from-bottom-5">
+            <div className="flex items-center gap-3 pl-2">
+              <div className="bg-white/20 p-2 rounded-xl animate-pulse">
+                <Clock size={18} strokeWidth={3} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase opacity-60 tracking-widest leading-none mb-1">Active Order • Token #{activeOrder.orderId}</p>
+                <p className="font-black text-xs uppercase italic tracking-tight leading-none">Status: {activeOrder.status?.replace('_', ' ')}</p>
+              </div>
+            </div>
+            <div className="pr-2 opacity-40"><ChevronRight size={20} /></div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CART BANNER (Existing) --- */}
       {cart.length > 0 && (
         <div className="fixed bottom-8 left-0 right-0 z-50 px-4 flex justify-center">
           <div className="w-full max-w-md bg-black dark:bg-white text-white dark:text-black p-5 rounded-[2.5rem] shadow-2xl flex items-center justify-between border border-white/10">

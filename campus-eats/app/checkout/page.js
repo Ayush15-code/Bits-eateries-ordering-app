@@ -15,13 +15,12 @@ export default function Checkout() {
   const [shopId, setShopId] = useState('');
   const [user, setUser] = useState(null);
   const [isHydrated, setIsHydrated] = useState(false);
-
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [generatedUpiLink, setGeneratedUpiLink] = useState('');
   const [lastCreatedOrderId, setLastCreatedOrderId] = useState('');
-
   const [screenshotBase64, setScreenshotBase64] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [lastNumericId, setLastNumericId] = useState(null);
 
   const router = useRouter();
 
@@ -126,6 +125,7 @@ export default function Checkout() {
       });
 
       setLastCreatedOrderId(newOrderData.docId);
+      setLastNumericId(newOrderData.numericId);
       const upi = `upi://pay?pa=ayush12123a@okhdfcbank&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
       setGeneratedUpiLink(upi);
       setShowPaymentOptions(true);
@@ -134,23 +134,37 @@ export default function Checkout() {
     }
   };
 
-  const handleSubmitScreenshot = async () => {
-    if (!screenshotBase64 || !lastCreatedOrderId) return;
-    setIsUploading(true);
-    try {
-      await updateDoc(doc(db, "orders", lastCreatedOrderId), {
-        screenshotBase64: screenshotBase64,
-        status: "AWAITING_VERIFICATION", // Merchant logic should look for this
-        submittedAt: serverTimestamp()
-      });
-      localStorage.removeItem('pending_cart');
-      router.push(`/status/${lastCreatedOrderId}`);
-    } catch (error) {
-      alert("Upload failed.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
+ const handleSubmitScreenshot = async () => {
+  if (!screenshotBase64 || !lastCreatedOrderId) return;
+  setIsUploading(true);
+  try {
+    await updateDoc(doc(db, "orders", lastCreatedOrderId), {
+      screenshotBase64: screenshotBase64,
+      status: "AWAITING_VERIFICATION",
+      submittedAt: serverTimestamp()
+    });
+
+    // Ab lastNumericId state se mil jayega
+    const activeOrder = {
+      id: lastCreatedOrderId,
+      orderId: lastNumericId || "...", 
+      total: total,
+      status: "AWAITING_VERIFICATION",
+      timestamp: Date.now()
+    };
+
+    const existingHistory = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
+    localStorage.setItem('order_history_v2', JSON.stringify([activeOrder, ...existingHistory]));
+
+    localStorage.removeItem('pending_cart');
+    router.push(`/status/${lastCreatedOrderId}`);
+    
+  } catch (error) {
+    alert("Upload failed.");
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   if (!isHydrated) return null;
 
