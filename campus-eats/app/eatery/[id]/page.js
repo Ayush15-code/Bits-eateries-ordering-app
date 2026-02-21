@@ -104,18 +104,26 @@ export default function Menu() {
     return item ? item.quantity : 0;
   };
 
-  const updateCart = (item, delta) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === item.id);
-      if (existing) {
-        const newQty = existing.quantity + delta;
-        if (newQty <= 0) return prev.filter(i => i.id !== item.id);
-        return prev.map(i => i.id === item.id ? { ...i, quantity: newQty } : i);
-      }
-      if (delta > 0) return [...prev, { ...item, quantity: 1 }];
-      return prev;
-    });
-  };
+  // Inside updateCart in app/eatery/[id]/page.js
+const updateCart = (item, delta) => {
+  setCart(prev => {
+    const existing = prev.find(i => i.id === item.id);
+    if (existing) {
+      const newQty = existing.quantity + delta;
+      if (newQty <= 0) return prev.filter(i => i.id !== item.id);
+      return prev.map(i => i.id === item.id ? { ...i, quantity: newQty } : i);
+    }
+    if (delta > 0) {
+      return [...prev, { 
+        ...item, 
+        quantity: 1, 
+        // Explicitly pass the category from the menu item
+        category: item.category || "General" 
+      }];
+    }
+    return prev;
+  });
+};
 
   const total = useMemo(() => {
     return cart.reduce((sum, item) => sum + (Number(item.price || item.Price || 0) * (item.quantity || 1)), 0);

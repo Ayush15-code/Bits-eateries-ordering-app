@@ -1,13 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { db, auth } from '../lib/firebase'; 
-import { 
-  collection, 
-  doc, 
-  runTransaction, 
-  serverTimestamp,
-  updateDoc 
+import { db, auth } from '../lib/firebase';
+import {
+  collection, doc, runTransaction, serverTimestamp, updateDoc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { QRCodeSVG } from 'qrcode.react';
@@ -19,12 +15,12 @@ export default function Checkout() {
   const [shopId, setShopId] = useState('');
   const [user, setUser] = useState(null);
   const [isHydrated, setIsHydrated] = useState(false);
-  
+
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [generatedUpiLink, setGeneratedUpiLink] = useState('');
   const [lastCreatedOrderId, setLastCreatedOrderId] = useState('');
 
-  const [screenshotBase64, setScreenshotBase64] = useState(""); 
+  const [screenshotBase64, setScreenshotBase64] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const router = useRouter();
@@ -40,22 +36,20 @@ export default function Checkout() {
       const savedShopId = localStorage.getItem('pending_shop_id') || '';
       setCart(savedCart);
       setShopId(savedShopId);
-      setIsHydrated(true); 
+      setIsHydrated(true);
     } catch (err) {
-      console.error("Failed to load cart:", err);
-      setIsHydrated(true); 
+      setIsHydrated(true);
     }
     return () => unsub();
   }, [router]);
 
   useEffect(() => {
-    if (!isHydrated) return; 
+    if (!isHydrated) return;
     const newTotal = cart.reduce((sum, item) => sum + (Number(item.price || item.Price || 0) * (item.quantity || 1)), 0);
     setTotal(newTotal);
     localStorage.setItem('pending_cart', JSON.stringify(cart));
   }, [cart, isHydrated]);
 
-  // --- Image Compression ---
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -79,12 +73,6 @@ export default function Checkout() {
     }
   };
 
-  const handleUpiClick = () => {
-    if (!generatedUpiLink) return;
-    window.location.href = generatedUpiLink;
-  };
-
-  // --- Cart Quantity Actions ---
   const updateQty = (index, delta) => {
     const newCart = [...cart];
     const newQty = (newCart[index].quantity || 1) + delta;
@@ -97,12 +85,16 @@ export default function Checkout() {
   };
 
   const removeItem = (index) => {
-    const newCart = cart.filter((_, i) => i !== index);
-    setCart(newCart);
+    setCart(cart.filter((_, i) => i !== index));
   };
 
   const handleFinalPayment = async () => {
     if (cart.length === 0) return;
+
+    // Explicitly grab user data for the merchant
+    const currentUserName = auth.currentUser?.displayName || user?.displayName || "BITS Student";
+    const currentUserEmail = auth.currentUser?.email || user?.email || "";
+
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const counterRef = doc(db, "internal", "order_counter");
@@ -118,26 +110,26 @@ export default function Checkout() {
         transaction.set(counterRef, { currentCount: nextId, lastDate: todayStr }, { merge: true });
 
         const newOrderRef = doc(ordersCol);
+        // Inside handleFinalPayment
         transaction.set(newOrderRef, {
           orderId: nextId,
           userId: user?.uid || "unknown",
-          userName: user?.displayName || "Student",
+          userName: currentUserName,
+          userEmail: currentUserEmail,
           items: cart,
           total: total,
-          status: "AWAITING_PAYMENT", 
+          status: "PENDING_SCREENSHOT", // Change this from AWAITING_PAYMENT
           createdAt: serverTimestamp(),
-          dateStr: todayStr,
           shopId: shopId
         });
         return { docId: newOrderRef.id, numericId: nextId };
       });
 
       setLastCreatedOrderId(newOrderData.docId);
-      const upi = `upi://pay?pa=tushar.nandal678@okhdfcbank&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
+      const upi = `upi://pay?pa=ayush12123a@okhdfcbank&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
       setGeneratedUpiLink(upi);
       setShowPaymentOptions(true);
     } catch (e) {
-      console.error(e);
       alert("Order failed.");
     }
   };
@@ -146,10 +138,9 @@ export default function Checkout() {
     if (!screenshotBase64 || !lastCreatedOrderId) return;
     setIsUploading(true);
     try {
-      const orderRef = doc(db, "orders", lastCreatedOrderId);
-      await updateDoc(orderRef, {
-        screenshotBase64: screenshotBase64, 
-        status: "AWAITING_VERIFICATION",
+      await updateDoc(doc(db, "orders", lastCreatedOrderId), {
+        screenshotBase64: screenshotBase64,
+        status: "AWAITING_VERIFICATION", // Merchant logic should look for this
         submittedAt: serverTimestamp()
       });
       localStorage.removeItem('pending_cart');
@@ -164,11 +155,11 @@ export default function Checkout() {
   if (!isHydrated) return null;
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-[#050505] min-h-screen text-white">
+    <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-[#050505] min-h-screen text-gray-900 dark:text-white transition-colors">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
-        <button onClick={() => router.back()} className="p-3 bg-white/5 rounded-2xl border border-white/10 active:scale-90 transition-all">
-          <ChevronLeft size={20} />
+        <button onClick={() => router.back()} className="p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 active:scale-90 transition-all shadow-sm">
+          <ChevronLeft size={20} className="text-orange-600" />
         </button>
         <h1 className="text-xl font-black uppercase italic tracking-tighter">Review Order</h1>
         <div className="w-11"></div>
@@ -180,31 +171,31 @@ export default function Checkout() {
           <div className="text-center py-20 opacity-20 font-black uppercase text-xs tracking-widest">Cart is empty</div>
         ) : (
           cart.map((item, index) => (
-            <div key={index} className="bg-white/5 p-5 rounded-[2rem] border border-white/10 flex flex-col gap-4 animate-in slide-in-from-bottom-4">
+            <div key={index} className="bg-white dark:bg-white/5 p-5 rounded-[2rem] border border-gray-100 dark:border-white/10 flex flex-col gap-4 shadow-sm">
               <div className="flex justify-between items-start">
                 <div className="flex gap-4">
-                  <div className="bg-orange-600 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm italic shadow-lg shadow-orange-600/20">
+                  <div className="bg-orange-600 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm italic shadow-lg shadow-orange-600/20 text-white">
                     {item.quantity || 1}x
                   </div>
                   <div>
                     <p className="font-black text-sm uppercase italic tracking-tight">{item.name || item.itemName}</p>
-                    <p className="text-orange-500 font-black text-[10px] mt-0.5">₹{item.price}</p>
+                    <p className="text-orange-500 font-black text-[10px] mt-0.5">₹{item.price || item.Price}</p>
                   </div>
                 </div>
-                <button onClick={() => removeItem(index)} className="text-white/20 hover:text-red-500 p-1 transition-colors">
+                <button onClick={() => removeItem(index)} className="text-gray-300 dark:text-white/20 hover:text-red-500 p-1 transition-colors">
                   <Trash2 size={18} />
                 </button>
               </div>
 
               {/* Qty Controls */}
-              <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
-                  <button onClick={() => updateQty(index, -1)} className="p-2 hover:bg-white/5 rounded-lg text-white/40"><Minus size={14} /></button>
+              <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-white/5">
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-black/40 p-1 rounded-xl border border-gray-200 dark:border-white/5">
+                  <button onClick={() => updateQty(index, -1)} className="p-2 hover:bg-gray-200 dark:hover:bg-white/5 rounded-lg text-gray-400 dark:text-white/40"><Minus size={14} /></button>
                   <span className="w-8 text-center font-black text-xs italic">{item.quantity || 1}</span>
-                  <button onClick={() => updateQty(index, 1)} className="p-2 hover:bg-white/5 rounded-lg text-orange-500"><Plus size={14} /></button>
+                  <button onClick={() => updateQty(index, 1)} className="p-2 hover:bg-gray-200 dark:hover:bg-white/5 rounded-lg text-orange-500"><Plus size={14} /></button>
                 </div>
-                <p className="font-black text-sm italic text-white/90 tracking-tighter">
-                  ₹{(item.price || 0) * (item.quantity || 1)}
+                <p className="font-black text-sm italic text-gray-800 dark:text-white/90 tracking-tighter">
+                  ₹{(Number(item.price || item.Price || 0)) * (item.quantity || 1)}
                 </p>
               </div>
             </div>
@@ -214,14 +205,14 @@ export default function Checkout() {
 
       {/* Bill Summary Section */}
       {cart.length > 0 && (
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl space-y-6">
+        <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
           <div className="flex items-center gap-2 mb-2">
-            <ReceiptText size={14} className="text-black/20" />
-            <h3 className="text-[10px] font-black uppercase text-black/30 tracking-[0.2em]">Bill Details</h3>
+            <ReceiptText size={14} className="text-gray-300 dark:text-black/20" />
+            <h3 className="text-[10px] font-black uppercase text-gray-400 dark:text-black/30 tracking-[0.2em]">Bill Details</h3>
           </div>
-          
+
           <div className="space-y-3">
-            <div className="flex justify-between text-[11px] font-black uppercase text-black/40 tracking-tight">
+            <div className="flex justify-between text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-tight">
               <span>Item Total</span>
               <span>₹{total}</span>
             </div>
@@ -229,10 +220,10 @@ export default function Checkout() {
               <span>Platform Fee</span>
               <span>FREE</span>
             </div>
-            
-            <div className="pt-5 border-t border-black/5 flex justify-between items-center">
-              <span className="text-xs font-black uppercase italic text-black/20">Total Amount</span>
-              <span className="text-4xl font-black italic text-black tracking-tighter">₹{total}</span>
+
+            <div className="pt-5 border-t border-gray-100 dark:border-white/5 flex justify-between items-center">
+              <span className="text-xs font-black uppercase italic text-gray-400">Total Amount</span>
+              <span className="text-4xl font-black italic text-orange-600 dark:text-white tracking-tighter">₹{total}</span>
             </div>
           </div>
 
@@ -245,13 +236,13 @@ export default function Checkout() {
 
       {/* Payment Modal */}
       {showPaymentOptions && (
-        <div className="fixed inset-0 bg-black/98 backdrop-blur-xl z-50 flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-sm rounded-[3rem] p-8 shadow-2xl">
-            <h2 className="text-xl font-black text-center mb-8 text-black uppercase italic tracking-tighter">Payment Proof</h2>
-            
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/98 backdrop-blur-xl z-50 flex items-center justify-center p-6">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800">
+            <h2 className="text-xl font-black text-center mb-8 text-black dark:text-white uppercase italic tracking-tighter">Payment Proof</h2>
+
             <div className="space-y-6">
-              <div className="bg-orange-50 p-5 rounded-3xl border border-orange-100 flex flex-col items-center">
-                <button onClick={handleUpiClick} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black text-[11px] uppercase flex items-center justify-center gap-3 mb-5 shadow-xl shadow-orange-600/20 active:scale-95">
+              <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-3xl border border-orange-100 dark:border-orange-900/30 flex flex-col items-center">
+                <button onClick={() => window.location.href = generatedUpiLink} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black text-[11px] uppercase flex items-center justify-center gap-3 mb-5 shadow-xl shadow-orange-600/20 active:scale-95">
                   <Smartphone size={18} /> Open UPI App
                 </button>
                 <div className="bg-white p-3 rounded-2xl shadow-sm">
@@ -260,18 +251,18 @@ export default function Checkout() {
               </div>
 
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-black/30 uppercase text-center tracking-[0.2em]">Upload Payment Screenshot</p>
-                <label className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-black/5 rounded-[2rem] cursor-pointer overflow-hidden bg-black/5">
+                <p className="text-[9px] font-black text-gray-400 uppercase text-center tracking-[0.2em]">Upload Payment Screenshot</p>
+                <label className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] cursor-pointer overflow-hidden bg-gray-50 dark:bg-black/20">
                   {screenshotBase64 ? (
                     <img src={screenshotBase64} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
-                    <Camera className="text-black/10" size={32} />
+                    <Camera className="text-gray-300 dark:text-white/10" size={32} />
                   )}
                   <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                 </label>
               </div>
 
-              <button onClick={handleSubmitScreenshot} disabled={!screenshotBase64 || isUploading} className="w-full bg-black text-white py-5 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 transition-all">
+              <button onClick={handleSubmitScreenshot} disabled={!screenshotBase64 || isUploading} className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 transition-all">
                 {isUploading ? <Loader2 className="animate-spin" size={16} /> : "Confirm Order"}
               </button>
             </div>

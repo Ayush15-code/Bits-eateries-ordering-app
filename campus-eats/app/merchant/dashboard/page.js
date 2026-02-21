@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import ThemeToggle from '../../components/ThemeToggle'; 
-import { auth, db } from '../../lib/firebase'; 
+import ThemeToggle from '../../components/ThemeToggle';
+import { auth, db } from '../../lib/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import {
   collection,
@@ -44,7 +44,7 @@ export default function MerchantDash() {
     return (items || []).reduce((acc, item) => {
       const name = item.name || item.itemName || "Item";
       const qty = Number(item.quantity || item.Quantity || item.qty || 1);
-      if (acc[name]) { acc[name].quantity += qty; } 
+      if (acc[name]) { acc[name].quantity += qty; }
       else { acc[name] = { name: name, quantity: qty }; }
       return acc;
     }, {});
@@ -75,10 +75,12 @@ export default function MerchantDash() {
     if (!merchantShopId || !merchantUid) return;
 
     // Active Orders
+    // Inside MerchantDash.js
     const qOrders = query(
       collection(db, "orders"),
       where("shopId", "==", merchantShopId),
-      where("status", "in", ["AWAITING_PAYMENT", "AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED"])
+      // Explicitly list only the statuses the merchant should see
+      where("status", "in", ["AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED"])
     );
     const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
       setOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
@@ -187,21 +189,34 @@ export default function MerchantDash() {
               orders.map(o => (
                 <div key={o.id} className="bg-white dark:bg-gray-900 p-5 rounded-3xl shadow-md border-l-8 border-orange-500">
                   <div className="flex justify-between items-start">
+                    {/* Inside the Orders Tab map */}
                     <div>
                       <p className="font-black text-xl dark:text-white italic">#{o.orderId || o.id.slice(0, 5)}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 flex items-center gap-1"><User size={12}/> {o.userName || 'Student'}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 flex items-center gap-1">
+                        <User size={12} />
+                        {/* Highlighted Fix: Check for userName specifically */}
+                        {o.userName ? o.userName : "Name Not Provided"}
+                      </p>
                     </div>
                     <span className="text-[9px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-black uppercase">{o.status}</span>
                   </div>
 
+                  {/* Inside the Orders Tab map in MerchantDash */}
                   <div className="my-4 space-y-2 border-y dark:border-gray-800 py-3">
                     {Object.values(getGroupedItems(o.items)).map((item, idx) => (
-                      <p key={idx} className="text-sm font-bold dark:text-gray-200"><span className="text-orange-600 mr-2">{item.quantity}x</span>{item.name}</p>
+                      <div key={idx} className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-bold dark:text-gray-200">
+                            <span className="text-orange-600 mr-2">{item.quantity}x</span>
+                            {item.name}
+                          </p>
+                          {/* Displays the category badge for the merchant */}
+                          <span className="text-[8px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded uppercase font-black">
+                            {item.category || "General"}
+                          </span>
+                        </div>
+                      </div>
                     ))}
-                    <div className="pt-2 flex justify-between items-center border-t border-dashed dark:border-gray-800">
-                      <span className="text-[9px] font-black uppercase text-gray-400">Total</span>
-                      <span className="font-black text-orange-600">₹{o.total}</span>
-                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -234,7 +249,7 @@ export default function MerchantDash() {
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <p className="font-black text-lg dark:text-white italic">#{o.orderId || o.id.slice(0, 5)}</p>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase flex items-center gap-1"><User size={10}/> {o.userName}</p>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase flex items-center gap-1"><User size={10} /> {o.userName}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-black text-orange-600">₹{o.total}</p>
@@ -250,10 +265,10 @@ export default function MerchantDash() {
 
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-dashed dark:border-gray-800">
                     <div className="flex items-center gap-1 text-[8px] font-black text-gray-400 uppercase">
-                      <Clock size={10}/> Placed: {o.createdAt?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      <Clock size={10} /> Placed: {o.createdAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     <div className="flex items-center justify-end gap-1 text-[8px] font-black text-green-500 uppercase">
-                      {o.collectedAt ? `Picked: ${o.collectedAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : o.status}
+                      {o.collectedAt ? `Picked: ${o.collectedAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : o.status}
                     </div>
                   </div>
                 </div>
@@ -268,19 +283,19 @@ export default function MerchantDash() {
             <div className={`p-6 rounded-3xl border-2 ${shopStatus ? 'bg-green-50 border-green-200 dark:bg-green-950/20' : 'bg-red-50 border-red-200'}`}>
               <div className="flex justify-between items-center">
                 <h3 className={`font-black uppercase text-[10px] tracking-widest ${shopStatus ? 'text-green-800' : 'text-red-800'}`}>Store {shopStatus ? 'Online' : 'Offline'}</h3>
-                  
-<button 
-  onClick={() => {
-    if (!merchantShopId) {
-      alert("Shop ID not loaded yet!");
-      return;
-    }
-    fireUpdateDoc(fireDoc(db, "shops", merchantShopId), { isOpen: !shopStatus });
-  }} 
-  className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-black text-[10px] uppercase shadow-md"
->
-  Toggle Status
-</button>
+
+                <button
+                  onClick={() => {
+                    if (!merchantShopId) {
+                      alert("Shop ID not loaded yet!");
+                      return;
+                    }
+                    fireUpdateDoc(fireDoc(db, "shops", merchantShopId), { isOpen: !shopStatus });
+                  }}
+                  className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-black text-[10px] uppercase shadow-md"
+                >
+                  Toggle Status
+                </button>
               </div>
             </div>
 
@@ -308,8 +323,8 @@ export default function MerchantDash() {
                           <div className="flex items-center gap-3">
                             <button onClick={() => { setEditItem({ name: item.name, price: item.price || item.Price, category: item.category || 'General' }); setEditingItemId(item.id); setIsEditingItem(true); }} className="text-gray-300 hover:text-blue-500"><Edit3 size={16} /></button>
                             <div>
-                               <p className={`font-bold text-sm dark:text-white ${!item.isAvailable ? 'opacity-40 line-through' : ''}`}>{item.name}</p>
-                               <p className="text-orange-500 font-black text-[10px]">₹{item.price || item.Price}</p>
+                              <p className={`font-bold text-sm dark:text-white ${!item.isAvailable ? 'opacity-40 line-through' : ''}`}>{item.name}</p>
+                              <p className="text-orange-500 font-black text-[10px]">₹{item.price || item.Price}</p>
                             </div>
                           </div>
                           <button onClick={() => fireSetDoc(fireDoc(db, "metabase", merchantUid), { items: menuItems.map(i => i.id === item.id ? { ...i, isAvailable: !i.isAvailable } : i) }, { merge: true })} className={`px-4 py-2 rounded-xl text-[9px] font-black ${item.isAvailable ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
