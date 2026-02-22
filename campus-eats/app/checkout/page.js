@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db, auth } from '../lib/firebase';
 import {
-  collection, doc, runTransaction, serverTimestamp, updateDoc
+  collection, doc, runTransaction, serverTimestamp, updateDoc, getDoc // Added getDoc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { QRCodeSVG } from 'qrcode.react';
@@ -13,6 +13,7 @@ export default function Checkout() {
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
   const [shopId, setShopId] = useState('');
+  const [shop, setShop] = useState(null); // Added shop state
   const [user, setUser] = useState(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
@@ -41,6 +42,23 @@ export default function Checkout() {
     }
     return () => unsub();
   }, [router]);
+
+  // --- NEW: Fetch Shop Data for Dynamic UPI ---
+  useEffect(() => {
+    if (!shopId) return;
+    const fetchShopData = async () => {
+      try {
+        const shopRef = doc(db, "shops", shopId);
+        const shopSnap = await getDoc(shopRef);
+        if (shopSnap.exists()) {
+          setShop(shopSnap.data());
+        }
+      } catch (err) {
+        console.error("Error fetching shop:", err);
+      }
+    };
+    fetchShopData();
+  }, [shopId]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -90,7 +108,10 @@ export default function Checkout() {
   const handleFinalPayment = async () => {
     if (cart.length === 0) return;
 
-    // Explicitly grab user data for the merchant
+    // Use dynamic shop data or fallback
+    const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank";
+    const merchantName = shop?.name || "CampusEats";
+
     const currentUserName = auth.currentUser?.displayName || user?.displayName || "BITS Student";
     const currentUserEmail = auth.currentUser?.email || user?.email || "";
 
@@ -109,7 +130,6 @@ export default function Checkout() {
         transaction.set(counterRef, { currentCount: nextId, lastDate: todayStr }, { merge: true });
 
         const newOrderRef = doc(ordersCol);
-        // Inside handleFinalPayment
         transaction.set(newOrderRef, {
           orderId: nextId,
           userId: user?.uid || "unknown",
@@ -117,7 +137,7 @@ export default function Checkout() {
           userEmail: currentUserEmail,
           items: cart,
           total: total,
-          status: "PENDING_SCREENSHOT", // Change this from AWAITING_PAYMENT
+          status: "PENDING_SCREENSHOT",
           createdAt: serverTimestamp(),
           shopId: shopId
         });
@@ -126,7 +146,9 @@ export default function Checkout() {
 
       setLastCreatedOrderId(newOrderData.docId);
       setLastNumericId(newOrderData.numericId);
-      const upi = `upi://pay?pa=ayush12123a@okhdfcbank&pn=CampusEats&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
+      
+      // Dynamic UPI Link
+      const upi = `upi://pay?pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=Order-${newOrderData.numericId}`;
       setGeneratedUpiLink(upi);
       setShowPaymentOptions(true);
     } catch (e) {
@@ -144,11 +166,11 @@ export default function Checkout() {
       submittedAt: serverTimestamp()
     });
 
-    // Ab lastNumericId state se mil jayega
     const activeOrder = {
       id: lastCreatedOrderId,
       orderId: lastNumericId || "...", 
       total: total,
+      items: cart, // Added items here to fix your earlier issue
       status: "AWAITING_VERIFICATION",
       timestamp: Date.now()
     };
@@ -170,7 +192,6 @@ export default function Checkout() {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-[#050505] min-h-screen text-gray-900 dark:text-white transition-colors">
-      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <button onClick={() => router.back()} className="p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 active:scale-90 transition-all shadow-sm">
           <ChevronLeft size={20} className="text-orange-600" />
@@ -179,7 +200,6 @@ export default function Checkout() {
         <div className="w-11"></div>
       </div>
 
-      {/* Cart Items */}
       <div className="space-y-4 mb-8">
         {cart.length === 0 ? (
           <div className="text-center py-20 opacity-20 font-black uppercase text-xs tracking-widest">Cart is empty</div>
@@ -201,7 +221,6 @@ export default function Checkout() {
                 </button>
               </div>
 
-              {/* Qty Controls */}
               <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-white/5">
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-black/40 p-1 rounded-xl border border-gray-200 dark:border-white/5">
                   <button onClick={() => updateQty(index, -1)} className="p-2 hover:bg-gray-200 dark:hover:bg-white/5 rounded-lg text-gray-400 dark:text-white/40"><Minus size={14} /></button>
@@ -217,7 +236,6 @@ export default function Checkout() {
         )}
       </div>
 
-      {/* Bill Summary Section */}
       {cart.length > 0 && (
         <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
           <div className="flex items-center gap-2 mb-2">
@@ -248,7 +266,6 @@ export default function Checkout() {
         </div>
       )}
 
-      {/* Payment Modal */}
       {showPaymentOptions && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/98 backdrop-blur-xl z-50 flex items-center justify-center p-6">
           <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800">
@@ -286,3 +303,4 @@ export default function Checkout() {
     </div>
   );
 }
+
