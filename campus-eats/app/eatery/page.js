@@ -6,6 +6,7 @@ import { collection, onSnapshot, doc } from 'firebase/firestore'; // Added doc
 import Link from 'next/link';
 import ThemeToggle from '../components/ThemeToggle';
 import InstallButton from '../components/InstallButton'; 
+import Image from 'next/image';
 import { Clock, X, ChevronRight, Menu as MenuIcon, ReceiptText, Trash2 } from 'lucide-react';
 
 export default function EateriesList() {
@@ -216,8 +217,16 @@ export default function EateriesList() {
           <button onClick={() => setIsSidebarOpen(true)} className="w-12 h-12 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-700 dark:text-white active:scale-90 transition-all">
             <MenuIcon size={24} strokeWidth={2.5} />
           </button>
-          <div className="text-center flex-1">
-            <h1 className="text-3xl font-black text-orange-600 tracking-tighter leading-none italic">CampusEats</h1>
+          <div className="flex-1 flex flex-col items-center">
+            {/* Logo replacement for the H1 text */}
+            <Image 
+              src="/icon.png" // Path to your logo in /public
+              alt="CampusEats Logo"
+              width={140}    // Adjust based on your logo's aspect ratio
+              height={40}
+              className="object-contain dark:brightness-110" // brightness-110 helps it pop in dark mode
+              priority       // Ensures the logo loads immediately
+            />
             <p className="text-gray-500 dark:text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mt-1">BITS GOA</p>
           </div>
           <div className="flex items-center gap-2">
