@@ -5,8 +5,7 @@ import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore'; // Added doc
 import Link from 'next/link';
 import ThemeToggle from '../components/ThemeToggle';
-import InstallButton from '../components/InstallButton';
-import Image from 'next/image';
+import InstallButton from '../components/InstallButton'; 
 import { Clock, X, ChevronRight, Menu as MenuIcon, ReceiptText, Trash2 } from 'lucide-react';
 
 export default function EateriesList() {
@@ -15,10 +14,10 @@ export default function EateriesList() {
   const [cartTotal, setCartTotal] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
-
+  
   // --- NEW STATE FOR STATUS BAR ---
   const [activeOrder, setActiveOrder] = useState(null);
-
+  
   const router = useRouter();
 
   useEffect(() => {
@@ -34,20 +33,20 @@ export default function EateriesList() {
     // 2. Hydrating state (Updated to check order_history_v2)
     const savedCart = JSON.parse(localStorage.getItem('pending_cart') || '[]');
     const savedTotal = localStorage.getItem('pending_total') || '0';
-
+    
     // Yahan hum primary history 'order_history_v2' ko check kar rahe hain active bar ke liye
     const savedHistoryV2 = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
     const savedHistoryLegacy = JSON.parse(localStorage.getItem('order_history') || '[]');
-
+    
     setCart(savedCart);
     setCartTotal(Number(savedTotal));
     setOrderHistory(savedHistoryV2.length > 0 ? savedHistoryV2 : savedHistoryLegacy);
 
     // --- STATUS BAR OPTIMIZED LISTENER ---
-    let unsubActiveOrder = () => { };
+    let unsubActiveOrder = () => {};
     if (savedHistoryV2.length > 0) {
       const latest = savedHistoryV2[0];
-
+      
       // Optimization: Sirf 30 min se kam purane orders check karo
       const isRecent = !latest.timestamp || (Date.now() - latest.timestamp < 30 * 60 * 1000);
 
@@ -86,16 +85,16 @@ export default function EateriesList() {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen relative text-gray-900 dark:text-gray-100 transition-colors">
-
+      
       {/* --- SIDEBAR DRAWER (Old Logic Untouched) --- */}
       <div className={`fixed inset-0 z-[100] transition-visibility ${isSidebarOpen ? 'visible' : 'invisible'}`}>
-        <div
+        <div 
           className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}
           onClick={() => setIsSidebarOpen(false)}
         />
         <div className={`absolute top-0 left-0 h-full w-[85%] max-w-xs bg-white dark:bg-[#0d0d0d] shadow-2xl transition-transform duration-500 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} border-r dark:border-white/5`}>
           <div className="p-6 h-full flex flex-col">
-
+            
             <div className="flex justify-between items-center mb-8 pt-2">
               <div>
                 <h2 className="text-xl font-black text-orange-600 uppercase tracking-tighter italic">Activity</h2>
@@ -108,90 +107,90 @@ export default function EateriesList() {
                   </button>
                 )}
                 <button onClick={() => setIsSidebarOpen(false)} className="p-2 bg-gray-50 dark:bg-white/5 rounded-full">
-                  <X size={20} />
+                  <X size={20}/>
                 </button>
               </div>
             </div>
-
+            
 
             {/* --- ORDER HISTORY LIST --- */}
-            <div className="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-              {orderHistory.length > 0 ? [...orderHistory].map((order, idx) => {
-                const isObject = typeof order === 'object' && order !== null;
-                const orderId = isObject ? order.id : order;
-                const displayNum = isObject && (order.orderId || order.orderNumber) ? (order.orderId || order.orderNumber) : (orderHistory.length - idx);
-                const orderTotal = isObject ? (order.total || order.totalPrice) : null;
+<div className="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+  {orderHistory.length > 0 ? [...orderHistory].map((order, idx) => {
+    const isObject = typeof order === 'object' && order !== null;
+    const orderId = isObject ? order.id : order;
+    const displayNum = isObject && (order.orderId || order.orderNumber) ? (order.orderId || order.orderNumber) : (orderHistory.length - idx);
+    const orderTotal = isObject ? (order.total || order.totalPrice) : null;
+    
+    // items array nikalne ke liye backup check
+    const orderItems = isObject ? (order.items || []) : [];
 
-                // items array nikalne ke liye backup check
-                const orderItems = isObject ? (order.items || []) : [];
-
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      setIsSidebarOpen(false);
-                      router.push(`/status/${orderId}`);
-                    }}
-                    className="p-5 bg-gray-50 dark:bg-white/5 rounded-[2.2rem] flex flex-col gap-3 group cursor-pointer border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-orange-100 dark:bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-600">
-                          <ReceiptText size={18} />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1 text-orange-500">Order No.</p>
-                          <span className="text-base font-black dark:text-gray-200 tracking-tighter italic">#{displayNum}</span>
-                        </div>
-                      </div>
-                      {orderTotal && (
-                        <div className="text-right">
-                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total</p>
-                          <span className="text-sm font-black text-orange-600 italic">₹{orderTotal}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* --- ITEMS DISPLAY (Corrected for "Plain Masala Dosa" format) --- */}
-                    {orderItems.length > 0 && (
-                      <div className="bg-white/40 dark:bg-black/20 p-3 rounded-2xl space-y-1">
-                        {orderItems.map((item, iIdx) => (
-                          <p key={iIdx} className="text-[10px] font-bold dark:text-gray-300 flex items-center">
-                            <span className="text-orange-600 mr-2">{item.quantity}x</span>
-                            {/* Format: Name + Category (agar General nahi hai toh) */}
-                            <span className="uppercase tracking-tight">
-                              {item.name} {item.category && item.category !== "General" ? item.category : ""}
-                            </span>
-                          </p>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mt-1 pt-3 border-t border-gray-100 dark:border-white/5">
-                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                        ID: {orderId?.slice(-4).toUpperCase()}
-                      </span>
-                      <div className="flex items-center gap-1 text-orange-600">
-                        <span className="text-[9px] font-black uppercase tracking-widest font-mono">TRACK</span>
-                        <ChevronRight size={12} strokeWidth={3} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className="text-center py-20 opacity-20">
-                  <Clock size={48} className="mx-auto mb-2" />
-                  <p className="text-xs font-bold uppercase tracking-widest">No History</p>
-                </div>
-              )}
+    return (
+      <div 
+        key={idx} 
+        onClick={() => {
+            setIsSidebarOpen(false);
+            router.push(`/status/${orderId}`);
+        }} 
+        className="p-5 bg-gray-50 dark:bg-white/5 rounded-[2.2rem] flex flex-col gap-3 group cursor-pointer border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]"
+      >
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-600">
+              <ReceiptText size={18} />
             </div>
+            <div>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1 text-orange-500">Order No.</p>
+              <span className="text-base font-black dark:text-gray-200 tracking-tighter italic">#{displayNum}</span>
+            </div>
+          </div>
+          {orderTotal && (
+            <div className="text-right">
+              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total</p>
+              <span className="text-sm font-black text-orange-600 italic">₹{orderTotal}</span>
+            </div>
+          )}
+        </div>
 
+        {/* --- ITEMS DISPLAY (Corrected for "Plain Masala Dosa" format) --- */}
+        {orderItems.length > 0 && (
+          <div className="bg-white/40 dark:bg-black/20 p-3 rounded-2xl space-y-1">
+            {orderItems.map((item, iIdx) => (
+              <p key={iIdx} className="text-[10px] font-bold dark:text-gray-300 flex items-center">
+                <span className="text-orange-600 mr-2">{item.quantity}x</span>
+                {/* Format: Name + Category (agar General nahi hai toh) */}
+                <span className="uppercase tracking-tight">
+                  {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                </span>
+              </p>
+            ))}
+          </div>
+        )}
 
+        <div className="flex items-center justify-between mt-1 pt-3 border-t border-gray-100 dark:border-white/5">
+          <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+            ID: {orderId?.slice(-4).toUpperCase()}
+          </span>
+          <div className="flex items-center gap-1 text-orange-600">
+            <span className="text-[9px] font-black uppercase tracking-widest font-mono">TRACK</span>
+            <ChevronRight size={12} strokeWidth={3} />
+          </div>
+        </div>
+      </div>
+    );
+  }) : (
+    <div className="text-center py-20 opacity-20">
+      <Clock size={48} className="mx-auto mb-2" />
+      <p className="text-xs font-bold uppercase tracking-widest">No History</p>
+    </div>
+  )}
+</div>
+          
+            
             <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/5 space-y-4">
-              <button
+              <button 
                 onClick={() => {
-                  if (confirm("Are you sure you want to logout?")) {
-                    localStorage.clear();
+                  if(confirm("Are you sure you want to logout?")) {
+                    localStorage.clear(); 
                     window.location.href = "/";
                   }
                 }}
@@ -199,7 +198,7 @@ export default function EateriesList() {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-600/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                   </div>
                   <span className="text-[11px] font-black uppercase tracking-widest">Logout</span>
                 </div>
@@ -217,20 +216,12 @@ export default function EateriesList() {
           <button onClick={() => setIsSidebarOpen(true)} className="w-12 h-12 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-700 dark:text-white active:scale-90 transition-all">
             <MenuIcon size={24} strokeWidth={2.5} />
           </button>
-          <div className="flex-1 flex flex-col items-center">
-            {/* Logo replacement for the H1 text */}
-            <Image
-              src="/icon.png" // Path to your logo in /public
-              alt="CampusEats Logo"
-              width={140}    // Adjust based on your logo's aspect ratio
-              height={40}
-              className="object-contain dark:brightness-110" // brightness-110 helps it pop in dark mode
-              priority       // Ensures the logo loads immediately
-            />
-            {/* <p className="text-gray-500 dark:text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mt-1">BITS GOA</p> */}
+          <div className="text-center flex-1">
+            <h1 className="text-3xl font-black text-orange-600 tracking-tighter leading-none italic">CampusEats</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mt-1">BITS GOA</p>
           </div>
           <div className="flex items-center gap-2">
-            <InstallButton />
+            <InstallButton /> 
             <ThemeToggle />
           </div>
         </div>
@@ -265,7 +256,7 @@ export default function EateriesList() {
 
       {/* --- STATUS BAR (OPTIMIZED) --- */}
       {activeOrder && (
-        <div
+        <div 
           onClick={() => router.push(`/status/${activeOrder.id}`)}
           className={`fixed left-0 right-0 z-50 px-4 flex justify-center transition-all duration-500 ${cart.length > 0 ? 'bottom-32' : 'bottom-8'}`}
         >
