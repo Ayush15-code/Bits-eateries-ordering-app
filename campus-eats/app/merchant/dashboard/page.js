@@ -203,35 +203,46 @@ export default function MerchantDash() {
 
                   {/* Inside the Orders Tab map in MerchantDash */}
                   {/* Inside the Orders Tab map in MerchantDash */}
- <div className="my-4 space-y-2 border-y dark:border-gray-800 py-3">
-   {/* getGroupedItems ko bypass karke direct items use kar rahe hain brackets se bachne ke liye */}
-   {o.items.map((item, idx) => (
-     <div key={idx} className="flex justify-between items-center">
-       <div>
-         <p className="text-sm font-bold dark:text-gray-200">
-           <span className="text-orange-600 mr-2">{item.quantity}x</span>
-           {/* Item name aur Category ko bina brackets ke merge kar rahe hain */}
-           {item.name} {item.category && item.category !== "General" ? item.category : ""}
-         </p>
-       </div>
-     </div>
-   ))}
- </div>
+                  {/* Inside the Order Card */}
+                  <div className="flex justify-between items-center bg-orange-50 dark:bg-orange-950/20 p-3 rounded-2xl mb-3 border border-orange-100 dark:border-orange-900/30">
+                    <div>
+                      <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Verification Code</p>
+                      <p className="text-xl font-black text-orange-700 dark:text-orange-400">CE-{o.verificationCode}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-bold text-gray-400 uppercase">Match this with</p>
+                      <p className="text-[8px] font-bold text-gray-400 uppercase text-orange-600">Screenshot note</p>
+                    </div>
+                  </div>
+                  <div className="my-4 space-y-2 border-y dark:border-gray-800 py-3">
+                    {/* getGroupedItems ko bypass karke direct items use kar rahe hain brackets se bachne ke liye */}
+                    {o.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-bold dark:text-gray-200">
+                            <span className="text-orange-600 mr-2">{item.quantity}x</span>
+                            {/* Item name aur Category ko bina brackets ke merge kar rahe hain */}
+                            {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
- <div className="space-y-2">
-   {o.status === "AWAITING_VERIFICATION" && (
-     <button onClick={() => setViewingScreenshot(o.screenshotBase64)} className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">View Payment Proof</button>
-   )}
-   <div className="flex gap-2">
-     {o.status === "AWAITING_VERIFICATION" ? (
-       <button onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Accept Payment</button>
-     ) : (
-       <button onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })} className="flex-1 bg-gray-900 dark:bg-white dark:text-black text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Mark Collected</button>
-     )}
-   </div>
- </div>
+                  <div className="space-y-2">
+                    {o.status === "AWAITING_VERIFICATION" && (
+                      <button onClick={() => setViewingScreenshot(o.screenshotBase64)} className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">View Payment Proof</button>
+                    )}
+                    <div className="flex gap-2">
+                      {o.status === "AWAITING_VERIFICATION" ? (
+                        <button onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Accept Payment</button>
+                      ) : (
+                        <button onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })} className="flex-1 bg-gray-900 dark:bg-white dark:text-black text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Mark Collected</button>
+                      )}
+                    </div>
+                  </div>
 
-                  
+
                 </div>
               ))
             )}
@@ -239,37 +250,37 @@ export default function MerchantDash() {
         )}
 
         {/* --- Merchant History Tab Section --- */}
-{activeTab === 'history' && (
-  <div className="space-y-4">
-    {historyOrders.map((o) => (
-      <div key={o.id} className="bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-xl font-black italic dark:text-white">#{o.orderId}</h3>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{o.userName}</p>
+        {activeTab === 'history' && (
+          <div className="space-y-4">
+            {historyOrders.map((o) => (
+              <div key={o.id} className="bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-black italic dark:text-white">#{o.orderId}</h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{o.userName}</p>
+                  </div>
+                  <span className="bg-green-100 dark:bg-green-900/30 text-green-600 px-3 py-1 rounded-full text-[8px] font-black uppercase">Collected</span>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-3xl mb-4">
+                  {/* CHANGE HERE: direct o.items use kar rahe hain brackets bypass karne ke liye */}
+                  {o.items.map((item, idx) => (
+                    <p key={idx} className="text-sm font-bold dark:text-gray-200">
+                      <span className="text-orange-600 mr-2">{item.quantity}x</span>
+                      {/* Name aur Category ko merge kar rahe hain bina brackets ke */}
+                      {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                    </p>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400">
+                  <span>Placed: {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-green-600">Picked: {new Date(o.collectedAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+            ))}
           </div>
-          <span className="bg-green-100 dark:bg-green-900/30 text-green-600 px-3 py-1 rounded-full text-[8px] font-black uppercase">Collected</span>
-        </div>
-
-        <div className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-3xl mb-4">
-          {/* CHANGE HERE: direct o.items use kar rahe hain brackets bypass karne ke liye */}
-          {o.items.map((item, idx) => (
-            <p key={idx} className="text-sm font-bold dark:text-gray-200">
-              <span className="text-orange-600 mr-2">{item.quantity}x</span>
-              {/* Name aur Category ko merge kar rahe hain bina brackets ke */}
-              {item.name} {item.category && item.category !== "General" ? item.category : ""}
-            </p>
-          ))}
-        </div>
-
-        <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400">
-          <span>Placed: {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-          <span className="text-green-600">Picked: {new Date(o.collectedAt?.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+        )}
 
         {/* --- MANAGE TAB --- */}
         {activeTab === 'manage' && (

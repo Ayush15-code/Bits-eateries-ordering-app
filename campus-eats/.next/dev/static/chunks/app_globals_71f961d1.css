@@ -638,6 +638,10 @@
     margin-bottom: calc(var(--spacing) * 2);
   }
 
+  .mb-3 {
+    margin-bottom: calc(var(--spacing) * 3);
+  }
+
   .mb-4 {
     margin-bottom: calc(var(--spacing) * 4);
   }
@@ -1337,11 +1341,6 @@
     fill: var(--color-red-500);
   }
 
-  .object-contain {
-    -o-object-fit: contain;
-    object-fit: contain;
-  }
-
   .object-cover {
     -o-object-fit: cover;
     object-fit: cover;
@@ -1457,10 +1456,6 @@
 
   .py-20 {
     padding-block: calc(var(--spacing) * 20);
-  }
-
-  .pt-1 {
-    padding-top: calc(var(--spacing) * 1);
   }
 
   .pt-2 {
@@ -1737,6 +1732,10 @@
     color: var(--color-orange-600);
   }
 
+  .text-orange-700 {
+    color: var(--color-orange-700);
+  }
+
   .text-red-500 {
     color: var(--color-red-500);
   }
@@ -1945,11 +1944,6 @@
     .shadow-red-600\/20 {
       --tw-shadow-color: color-mix(in oklab, color-mix(in oklab, var(--color-red-600) 20%, transparent) var(--tw-shadow-alpha), transparent);
     }
-  }
-
-  .brightness-110 {
-    --tw-brightness: brightness(110%);
-    filter: var(--tw-blur, ) var(--tw-brightness, ) var(--tw-contrast, ) var(--tw-grayscale, ) var(--tw-hue-rotate, ) var(--tw-invert, ) var(--tw-saturate, ) var(--tw-sepia, ) var(--tw-drop-shadow, );
   }
 
   .grayscale {
@@ -2515,11 +2509,6 @@
     .dark\:text-white\/90:where(.dark, .dark *) {
       color: color-mix(in oklab, var(--color-white) 90%, transparent);
     }
-  }
-
-  .dark\:brightness-110:where(.dark, .dark *) {
-    --tw-brightness: brightness(110%);
-    filter: var(--tw-blur, ) var(--tw-brightness, ) var(--tw-contrast, ) var(--tw-grayscale, ) var(--tw-hue-rotate, ) var(--tw-invert, ) var(--tw-saturate, ) var(--tw-sepia, ) var(--tw-drop-shadow, );
   }
 
   .dark\:placeholder\:text-gray-600:where(.dark, .dark *)::placeholder {
