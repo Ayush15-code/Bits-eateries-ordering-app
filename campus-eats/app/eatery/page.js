@@ -111,60 +111,80 @@ export default function EateriesList() {
                 </button>
               </div>
             </div>
+            
 
             {/* --- ORDER HISTORY LIST --- */}
-            <div className="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-              {orderHistory.length > 0 ? [...orderHistory].map((order, idx) => {
-                const isObject = typeof order === 'object' && order !== null;
-                const orderId = isObject ? order.id : order;
-                const displayNum = isObject && (order.orderId || order.orderNumber) ? (order.orderId || order.orderNumber) : (orderHistory.length - idx);
-                const orderTotal = isObject ? (order.total || order.totalPrice) : null;
+<div className="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+  {orderHistory.length > 0 ? [...orderHistory].map((order, idx) => {
+    const isObject = typeof order === 'object' && order !== null;
+    const orderId = isObject ? order.id : order;
+    const displayNum = isObject && (order.orderId || order.orderNumber) ? (order.orderId || order.orderNumber) : (orderHistory.length - idx);
+    const orderTotal = isObject ? (order.total || order.totalPrice) : null;
+    
+    // items array nikalne ke liye backup check
+    const orderItems = isObject ? (order.items || []) : [];
 
-                return (
-                  <div 
-                    key={idx} 
-                    onClick={() => {
-                        setIsSidebarOpen(false);
-                        router.push(`/status/${orderId}`);
-                    }} 
-                    className="p-5 bg-gray-50 dark:bg-white/5 rounded-[2.2rem] flex flex-col gap-3 group cursor-pointer border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-orange-100 dark:bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-600">
-                          <ReceiptText size={18} />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1 text-orange-500">Order No.</p>
-                          <span className="text-base font-black dark:text-gray-200 tracking-tighter italic">#{displayNum}</span>
-                        </div>
-                      </div>
-                      {orderTotal && (
-                        <div className="text-right">
-                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total</p>
-                          <span className="text-sm font-black text-orange-600 italic">₹{orderTotal}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between mt-1 pt-3 border-t border-gray-100 dark:border-white/5">
-                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                        ID: {orderId?.slice(-4).toUpperCase()}
-                      </span>
-                      <div className="flex items-center gap-1 text-orange-600">
-                        <span className="text-[9px] font-black uppercase tracking-widest font-mono">TRACK</span>
-                        <ChevronRight size={12} strokeWidth={3} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className="text-center py-20 opacity-20">
-                  <Clock size={48} className="mx-auto mb-2" />
-                  <p className="text-xs font-bold uppercase tracking-widest">No History</p>
-                </div>
-              )}
+    return (
+      <div 
+        key={idx} 
+        onClick={() => {
+            setIsSidebarOpen(false);
+            router.push(`/status/${orderId}`);
+        }} 
+        className="p-5 bg-gray-50 dark:bg-white/5 rounded-[2.2rem] flex flex-col gap-3 group cursor-pointer border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]"
+      >
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-600">
+              <ReceiptText size={18} />
             </div>
+            <div>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1 text-orange-500">Order No.</p>
+              <span className="text-base font-black dark:text-gray-200 tracking-tighter italic">#{displayNum}</span>
+            </div>
+          </div>
+          {orderTotal && (
+            <div className="text-right">
+              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total</p>
+              <span className="text-sm font-black text-orange-600 italic">₹{orderTotal}</span>
+            </div>
+          )}
+        </div>
+
+        {/* --- ITEMS DISPLAY (Corrected for "Plain Masala Dosa" format) --- */}
+        {orderItems.length > 0 && (
+          <div className="bg-white/40 dark:bg-black/20 p-3 rounded-2xl space-y-1">
+            {orderItems.map((item, iIdx) => (
+              <p key={iIdx} className="text-[10px] font-bold dark:text-gray-300 flex items-center">
+                <span className="text-orange-600 mr-2">{item.quantity}x</span>
+                {/* Format: Name + Category (agar General nahi hai toh) */}
+                <span className="uppercase tracking-tight">
+                  {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                </span>
+              </p>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mt-1 pt-3 border-t border-gray-100 dark:border-white/5">
+          <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+            ID: {orderId?.slice(-4).toUpperCase()}
+          </span>
+          <div className="flex items-center gap-1 text-orange-600">
+            <span className="text-[9px] font-black uppercase tracking-widest font-mono">TRACK</span>
+            <ChevronRight size={12} strokeWidth={3} />
+          </div>
+        </div>
+      </div>
+    );
+  }) : (
+    <div className="text-center py-20 opacity-20">
+      <Clock size={48} className="mx-auto mb-2" />
+      <p className="text-xs font-bold uppercase tracking-widest">No History</p>
+    </div>
+  )}
+</div>
+          
             
             <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/5 space-y-4">
               <button 

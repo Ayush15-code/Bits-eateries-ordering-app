@@ -69,13 +69,40 @@ export default function OrderStatus() {
     return (
       <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-500">
         <div className="mb-8 w-24 h-24 bg-green-500/10 rounded-[2.5rem] flex items-center justify-center text-5xl shadow-2xl shadow-green-500/20">✅</div>
-        <h1 className="text-4xl font-black text-white mb-3 italic tracking-tighter uppercase">Enjoy!</h1>
-        <p className="text-gray-500 mb-12 text-sm font-bold uppercase tracking-widest">Order Picked Successfully</p>
-        <button onClick={() => router.push('/eatery')} className="w-full max-w-xs bg-white text-black py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl">New Order</button>
+        <h1 className="text-4xl font-black text-white mb-2 italic tracking-tighter uppercase">Enjoy!</h1>
+        <p className="text-gray-500 mb-8 text-[10px] font-bold uppercase tracking-[0.3em]">Order Picked Successfully</p>
+
+        {/* --- ADDED ORDER SUMMARY CARD --- */}
+        <div className="w-full max-w-xs bg-white/5 border border-white/10 rounded-[2.5rem] p-6 mb-10 space-y-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-500 mb-2">You Had:</p>
+          <div className="space-y-3">
+            {order.items && order.items.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0">
+                <div className="text-left">
+                  <p className="text-sm font-black text-white italic leading-none">
+                    {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                  </p>
+                  <p className="text-[9px] font-bold text-gray-500 uppercase mt-1">Qty: {item.quantity}</p>
+                </div>
+                <p className="text-sm font-black text-white italic">₹{Number(item.price) * item.quantity}</p>
+              </div>
+            ))}
+          </div>
+          <div className="pt-2 flex justify-between items-center border-t border-white/10">
+            <span className="text-[9px] font-black uppercase text-gray-500">Total Bill</span>
+            <span className="text-xl font-black text-orange-600 italic">₹{order.total}</span>
+          </div>
+        </div>
+
+        <button 
+          onClick={() => router.push('/eatery')} 
+          className="w-full max-w-xs bg-white text-black py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl active:scale-95 transition-all"
+        >
+          New Order
+        </button>
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-[#050505] flex flex-col items-center p-6 pt-10">
       
