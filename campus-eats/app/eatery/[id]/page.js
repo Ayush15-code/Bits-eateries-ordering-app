@@ -196,52 +196,85 @@ const updateCart = (item, delta) => {
       </header>
 
       {/* --- MENU LIST --- */}
-      <div className="space-y-8">
-        {Object.keys(groupedItems).map(cat => (
-          <div key={cat}>
-            <button onClick={() => setOpenCategories(p => ({...p, [cat]: !p[cat]}))} className="w-full flex justify-between items-center py-2">
-              <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">{cat}</h2>
-              <ChevronDown size={18} className={`transition-transform duration-300 ${openCategories[cat] ? 'rotate-180 text-orange-500' : 'text-gray-300'}`} />
-            </button>
+<div className="space-y-8">
+  {Object.keys(groupedItems).map(cat => (
+    <div key={cat}>
+      <button onClick={() => setOpenCategories(p => ({...p, [cat]: !p[cat]}))} className="w-full flex justify-between items-center py-2">
+        <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">{cat}</h2>
+        <ChevronDown size={18} className={`transition-transform duration-300 ${openCategories[cat] ? 'rotate-180 text-orange-500' : 'text-gray-300'}`} />
+      </button>
 
-            {openCategories[cat] && (
-              <div className="space-y-4 mt-4">
-                {groupedItems[cat].map(group => {
-                  const isGroup = group.isVariantGroup;
-                  const activeItem = isGroup ? (selectedVariants[group.id] || group.variants[0]) : group;
-                  const itemQty = getItemQuantity(activeItem.id);
-                  return (
-                    <div key={group.id} className="flex items-center justify-between p-5 bg-gray-50/50 dark:bg-gray-900/40 rounded-[2.2rem]">
-                      <div className="flex flex-1 items-center gap-4">
-                        <button onClick={() => toggleFavorite(activeItem.id)}><Heart size={20} className={favorites.includes(activeItem.id) ? "text-red-500 fill-red-500" : "text-gray-300"} /></button>
-                        <div className="flex-1">
-                          <p className="font-bold text-gray-800 dark:text-white text-base">{group.name}</p>
-                          {isGroup ? (
-                            <select className="mt-1 bg-transparent text-orange-600 font-black text-[10px] uppercase outline-none" value={activeItem.id} onChange={(e) => setSelectedVariants(prev => ({...prev, [group.id]: group.variants.find(v => v.id === e.target.value)}))}>
-                              {group.variants.map(v => <option key={v.id} value={v.id}>{v.variantType} — ₹{v.price || v.Price}</option>)}
-                            </select>
-                          ) : <p className="text-orange-600 font-black text-sm mt-0.5">₹{activeItem.price || activeItem.Price}</p>}
-                        </div>
-                      </div>
-                      <div className="flex items-center">
-                        {itemQty > 0 ? (
-                          <div className="flex items-center bg-orange-600 text-white rounded-2xl overflow-hidden shadow-lg shadow-orange-500/20">
-                            <button onClick={() => updateCart(activeItem, -1)} className="p-3.5"><Minus size={14} strokeWidth={3} /></button>
-                            <span className="w-5 text-center font-black text-sm">{itemQty}</span>
-                            <button onClick={() => updateCart(activeItem, 1)} className="p-3.5"><Plus size={14} strokeWidth={3} /></button>
-                          </div>
-                        ) : (
-                          <button onClick={() => updateCart(activeItem, 1)} className="bg-white dark:bg-gray-800 text-orange-600 w-12 h-11 rounded-2xl font-black text-xl border border-gray-100 dark:border-gray-700 shadow-sm">+</button>
-                        )}
-                      </div>
+      {openCategories[cat] && (
+        <div className="space-y-4 mt-4">
+          {groupedItems[cat].map(group => {
+            const isGroup = group.isVariantGroup;
+            const activeItem = isGroup ? (selectedVariants[group.id] || group.variants[0]) : group;
+            const itemQty = getItemQuantity(activeItem.id);
+            
+            // Check availability: If explicitly false, it's unavailable. Otherwise, available.
+            const isAvailable = activeItem.isAvailable !== false;
+
+            return (
+              <div key={group.id} className={`flex items-center justify-between p-5 bg-gray-50/50 dark:bg-gray-900/40 rounded-[2.2rem] transition-all ${!isAvailable ? 'opacity-50 grayscale-[0.5]' : ''}`}>
+                <div className="flex flex-1 items-center gap-4">
+                  <button onClick={() => toggleFavorite(activeItem.id)}>
+                    <Heart size={20} className={favorites.includes(activeItem.id) ? "text-red-500 fill-red-500" : "text-gray-300"} />
+                  </button>
+                  
+                  <div className="flex-1">
+                    {/* --- NAME & CATEGORY TAG --- */}
+                    <div className="flex items-center gap-2">
+                      <p className={`font-bold text-gray-800 dark:text-white text-base ${!isAvailable ? 'line-through' : ''}`}>
+                        {group.name}
+                      </p>
+                      <span className="text-[7px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 px-1.5 py-0.5 rounded-md uppercase font-black tracking-tighter">
+                        {activeItem.category || "General"}
+                      </span>
                     </div>
-                  );
-                })}
+
+                    {isGroup ? (
+                      <select 
+                        disabled={!isAvailable}
+                        className="mt-1 bg-transparent text-orange-600 font-black text-[10px] uppercase outline-none" 
+                        value={activeItem.id} 
+                        onChange={(e) => setSelectedVariants(prev => ({...prev, [group.id]: group.variants.find(v => v.id === e.target.value)}))}
+                      >
+                        {group.variants.map(v => (
+                          <option key={v.id} value={v.id}>{v.variantType} — ₹{v.price || v.Price}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-orange-600 font-black text-sm mt-0.5">₹{activeItem.price || activeItem.Price}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  {isAvailable ? (
+                    itemQty > 0 ? (
+                      <div className="flex items-center bg-orange-600 text-white rounded-2xl overflow-hidden shadow-lg shadow-orange-500/20">
+                        <button onClick={() => updateCart(activeItem, -1)} className="p-3.5"><Minus size={14} strokeWidth={3} /></button>
+                        <span className="w-5 text-center font-black text-sm">{itemQty}</span>
+                        <button onClick={() => updateCart(activeItem, 1)} className="p-3.5"><Plus size={14} strokeWidth={3} /></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => updateCart(activeItem, 1)} className="bg-white dark:bg-gray-800 text-orange-600 w-12 h-11 rounded-2xl font-black text-xl border border-gray-100 dark:border-gray-700 shadow-sm">+</button>
+                    )
+                  ) : (
+                    /* --- NOT AVAILABLE BADGE --- */
+                    <span className="text-[8px] font-black text-red-500 uppercase px-3 py-2 border border-red-100 dark:border-red-900/30 rounded-xl bg-red-50/50 dark:bg-red-950/20">
+                      Not Available
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  ))}
+</div>
 
       {/* --- CART TRAY --- */}
       {cart.length > 0 && (
