@@ -106,6 +106,7 @@ export default function MerchantDash() {
     audioRef.current = new Audio("/notification.mp3");
     return () => unsubscribeAuth();
   }, [router]);
+  
 
   // Real-time Listeners
   useEffect(() => {
@@ -119,9 +120,31 @@ export default function MerchantDash() {
       // Explicitly list only the statuses the merchant should see
       where("status", "in", ["AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED"])
     );
+    
     const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
-      setOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
-    });
+  // --- SOUND LOGIC START ---
+  snap.docChanges().forEach((change) => {
+    if (change.type === "added") {
+      const orderData = change.doc.data();
+      
+      // Order ka timestamp check karein (taaki purane orders par sound na baje)
+      const orderTime = orderData.createdAt?.toMillis() || Date.now();
+      const now = Date.now();
+
+      // Agar order pichle 30 seconds mein aaya hai toh sound bajayein
+      if (now - orderTime < 30000) {
+        if (audioRef.current) {
+          audioRef.current.play().catch(err => {
+            console.log("Autoplay blocked: Click on dashboard to enable sound.");
+          });
+        }
+      }
+    }
+  });
+  // --- SOUND LOGIC END ---
+
+  setOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+});
 
     // History (Last 2 Hours)
     const twoHoursAgo = new Date();
@@ -197,7 +220,18 @@ export default function MerchantDash() {
   if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-gray-950 font-black text-orange-600">LOADING...</div>;
 
   return (
-    <div className="max-w-md mx-auto bg-gray-100 dark:bg-gray-950 min-h-screen pb-20">
+    <div 
+      className="max-w-md mx-auto bg-gray-100 dark:bg-gray-950 min-h-screen pb-20"
+      onClick={() => {
+        // Browser Autoplay Fix: Prime the audio on first interaction
+        if (audioRef.current) {
+          audioRef.current.play().then(() => {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+          }).catch(() => {});
+        }
+      }}
+    >
       {/* HEADER */}
       <div className="bg-white dark:bg-gray-900 p-6 shadow-sm sticky top-0 z-10 border-b dark:border-gray-800">
         <div className="flex justify-between items-center mb-4">
