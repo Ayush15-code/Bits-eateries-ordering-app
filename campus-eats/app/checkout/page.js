@@ -150,7 +150,7 @@ export default function Checkout() {
       setLastNumericId(newOrderData.numericId);
 
       // Dynamic UPI Link
-      const upi = `upi://pay?pa=ayush12123a@okhdfcbank&pn=CampusEats&am=${total}&cu=INR&tn=CE-${verificationCode}`;
+      const upi = `upi://pay?pa=paytmqr70kkpl@ptys&pn=CampusEats&am=${total}&cu=INR&tn=CE-${verificationCode}`;
       setGeneratedUpiLink(upi);
       setShowPaymentOptions(true);
     } catch (e) {
