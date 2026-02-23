@@ -38,7 +38,38 @@ export default function MerchantDash() {
   const router = useRouter();
   const audioRef = useRef(null);
   const [historyOrders, setHistoryOrders] = useState([]);
+  
 
+  useEffect(() => {
+    let wakeLock = null;
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (err) {
+        console.log("Wake Lock failed");
+      }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    });
+
+    requestWakeLock();
+
+    return () => {
+      // Clean up: stop wake lock when component unmounts
+      if (wakeLock !== null) {
+        wakeLock.release().then(() => { wakeLock = null; });
+      }
+    };
+  }, []);
+
+
+  
 
   useEffect(() => {
     const TWO_HOURS = 2 * 60 * 60 * 1000;
