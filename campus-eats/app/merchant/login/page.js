@@ -1,9 +1,9 @@
 "use client";
 import { useState } from 'react';
 import { auth, db } from '../../lib/firebase'; 
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import { setPersistence, browserLocalPersistence, signInWithEmailAndPassword } from 'firebase/auth'; // Ensure these are imported
 
 export default function MerchantLogin() {
   const [email, setEmail] = useState('');
@@ -13,22 +13,29 @@ export default function MerchantLogin() {
 
   const handleLogin = async (e) => {
   e.preventDefault();
-  setError(''); // Clear previous errors
+  setError(''); 
   try {
+    // 1. SET PERSISTENCE: Isse tab band karne par bhi merchant login rahega
+    await setPersistence(auth, browserLocalPersistence);
+
+    // 2. SIGN IN
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // 1. Set the cookie for the Middleware
+    // 3. Set the cookie for Middleware
     document.cookie = "userRole=merchant; path=/; max-age=86400; SameSite=Lax";
 
-    // 2. Double check Firestore document exists before redirecting
+    // 4. Double check Firestore document
     const userDoc = await getDoc(doc(db, "users", user.uid));
     if (!userDoc.exists()) {
        setError("Account error: No shop linked to this merchant UID in Firestore.");
        return;
     }
 
-    // 3. Successful redirect
+    // 5. ACTIVITY TRACKER: Login hote hi activity start karein
+    localStorage.setItem('lastActive', Date.now().toString());
+
+    // Successful redirect
     router.push('/merchant/dashboard');
   } catch (err) {
     setError(err.message);

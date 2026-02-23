@@ -3,6 +3,7 @@
   "/eatery/[id]/page": "app/eatery/[id]/page.js",
   "/eatery/page": "app/eatery/page.js",
   "/merchant/dashboard/page": "app/merchant/dashboard/page.js",
+  "/merchant/login/page": "app/merchant/login/page.js",
   "/page": "app/page.js",
   "/status/[id]/page": "app/status/[id]/page.js"
 }
