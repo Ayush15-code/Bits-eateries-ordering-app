@@ -41,37 +41,6 @@ export default function MerchantDash() {
   
 
   useEffect(() => {
-    let wakeLock = null;
-    const requestWakeLock = async () => {
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLock = await navigator.wakeLock.request('screen');
-        }
-      } catch (err) {
-        console.log("Wake Lock failed");
-      }
-    };
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        requestWakeLock();
-      }
-    });
-
-    requestWakeLock();
-
-    return () => {
-      // Clean up: stop wake lock when component unmounts
-      if (wakeLock !== null) {
-        wakeLock.release().then(() => { wakeLock = null; });
-      }
-    };
-  }, []);
-
-
-  
-
-  useEffect(() => {
     const TWO_HOURS = 2 * 60 * 60 * 1000;
 
     const checkInactivity = () => {
@@ -119,25 +88,41 @@ export default function MerchantDash() {
   };
 
   // Auth Effect
+ // Auth Effect + Notification Permission Request
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.push('/merchant/login');
       } else {
         setMerchantUid(user.uid);
+        
+        // --- NOTIFICATION PERMISSION LOGIC ---
+        if ("Notification" in window) {
+          if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+              if (permission === "granted") {
+                console.log("Notification permission granted.");
+              }
+            });
+          }
+        }
+        // --- END ---
+
         try {
           const userDoc = await fireGetDoc(fireDoc(db, "users", user.uid));
           if (userDoc.exists() && userDoc.data().shopId) {
             setMerchantShopId(userDoc.data().shopId);
           }
           setLoading(false);
-        } catch (err) { setLoading(false); }
+        } catch (err) { 
+          setLoading(false); 
+        }
       }
     });
+
     audioRef.current = new Audio("/notification.mp3");
     return () => unsubscribeAuth();
   }, [router]);
-  
 
   // Real-time Listeners
   useEffect(() => {
@@ -153,29 +138,32 @@ export default function MerchantDash() {
     );
     
     const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
-  // --- SOUND LOGIC START ---
   snap.docChanges().forEach((change) => {
     if (change.type === "added") {
       const orderData = change.doc.data();
-      
-      // Order ka timestamp check karein (taaki purane orders par sound na baje)
       const orderTime = orderData.createdAt?.toMillis() || Date.now();
       const now = Date.now();
 
-      // Agar order pichle 30 seconds mein aaya hai toh sound bajayein
       if (now - orderTime < 30000) {
+        // 1. Sound bajao
         if (audioRef.current) {
-          audioRef.current.play().catch(err => {
-            console.log("Autoplay blocked: Click on dashboard to enable sound.");
+          audioRef.current.play().catch(err => console.log("Sound blocked"));
+        }
+
+        // 2. Pop-up Notification dikhao
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Naya Order Aaya Hai! 🍔", {
+            body: `Order ID: #${orderData.orderId || change.doc.id.slice(0, 5)} - ₹${orderData.totalAmount || ""}`,
+            icon: "/favicon.ico", // Aapka logo path
+            silent: false, // Kuch browsers mein ye sound allow karta hai
           });
         }
       }
     }
   });
-  // --- SOUND LOGIC END ---
-
   setOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
 });
+
 
     // History (Last 2 Hours)
     const twoHoursAgo = new Date();
