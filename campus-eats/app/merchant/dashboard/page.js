@@ -38,42 +38,7 @@ export default function MerchantDash() {
   const router = useRouter();
   const audioRef = useRef(null);
   const [historyOrders, setHistoryOrders] = useState([]);
-  
 
-  useEffect(() => {
-    const TWO_HOURS = 2 * 60 * 60 * 1000;
-
-    const checkInactivity = () => {
-      const lastActive = localStorage.getItem('lastActive');
-      if (lastActive && Date.now() - parseInt(lastActive) > TWO_HOURS) {
-        // Logout if inactive for 2 hours
-        auth.signOut();
-        localStorage.clear();
-        window.location.href = '/login';
-      }
-    };
-
-    const updateActivity = () => {
-      localStorage.setItem('lastActive', Date.now().toString());
-    };
-
-    // Track interactions
-    window.addEventListener('mousemove', updateActivity);
-    window.addEventListener('click', updateActivity);
-    window.addEventListener('scroll', updateActivity);
-    window.addEventListener('keydown', updateActivity);
-
-    // Har 1 minute mein check karega background mein
-    const interval = setInterval(checkInactivity, 60000);
-
-    return () => {
-      window.removeEventListener('mousemove', updateActivity);
-      window.removeEventListener('click', updateActivity);
-      window.removeEventListener('scroll', updateActivity);
-      window.removeEventListener('keydown', updateActivity);
-      clearInterval(interval);
-    };
-  }, []);
   
 
   // Helper for grouping items
@@ -96,18 +61,6 @@ export default function MerchantDash() {
       } else {
         setMerchantUid(user.uid);
         
-        // --- NOTIFICATION PERMISSION LOGIC ---
-        if ("Notification" in window) {
-          if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-            Notification.requestPermission().then(permission => {
-              if (permission === "granted") {
-                console.log("Notification permission granted.");
-              }
-            });
-          }
-        }
-        // --- END ---
-
         try {
           const userDoc = await fireGetDoc(fireDoc(db, "users", user.uid));
           if (userDoc.exists() && userDoc.data().shopId) {
