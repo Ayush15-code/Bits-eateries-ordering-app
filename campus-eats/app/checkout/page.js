@@ -109,8 +109,10 @@ export default function Checkout() {
     if (cart.length === 0) return;
 
     const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-    // Use dynamic shop data or fallback
-    const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank";
+    
+    // Screenshot ke mutabiq shop metadata se dynamic UPI aur Name uthayein
+    // Agar shop variable mein data nahi hai, toh ye fallback use karega
+    const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank"; 
     const merchantName = shop?.name || "CampusEats";
 
     const currentUserName = auth.currentUser?.displayName || user?.displayName || "BITS Student";
@@ -149,11 +151,14 @@ export default function Checkout() {
       setLastCreatedOrderId(newOrderData.docId);
       setLastNumericId(newOrderData.numericId);
 
-      // Dynamic UPI Link
-      const upi = `upi://pay?pa=paytmqr70kkpl@ptys&pn=CampusEats&am=${total}&cu=INR&tn=CE-${verificationCode}`;
+      // --- DYNAMIC UPI LINK UPDATE ---
+      // Yahan static 'paytmqr...' ko hata kar merchantUpi variable use kiya hai
+      const upi = `upi://pay?pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
+      
       setGeneratedUpiLink(upi);
       setShowPaymentOptions(true);
     } catch (e) {
+      console.error("Payment Error: ", e);
       alert("Order failed.");
     }
   };
