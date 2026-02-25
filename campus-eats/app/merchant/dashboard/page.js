@@ -61,6 +61,17 @@ export default function MerchantDash() {
       } else {
         setMerchantUid(user.uid);
         
+        //changesssss
+        if ('serviceWorker' in navigator && 'Notification' in window) {
+        // Request Permission
+        Notification.requestPermission();
+        
+        // Register SW
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('SW Registered'))
+          .catch(err => console.log('SW Registration Failed', err));
+      }
+
         try {
           const userDoc = await fireGetDoc(fireDoc(db, "users", user.uid));
           if (userDoc.exists() && userDoc.data().shopId) {
@@ -98,25 +109,27 @@ export default function MerchantDash() {
       const now = Date.now();
 
       if (now - orderTime < 30000) {
-        // 1. Sound bajao
+        // 1. Awaaz (Tab open hone par)
         if (audioRef.current) {
-          audioRef.current.play().catch(err => console.log("Sound blocked"));
+          audioRef.current.play().catch(e => console.log("Sound blocked"));
         }
 
-        // 2. Pop-up Notification dikhao
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("Naya Order Aaya Hai! 🍔", {
-            body: `Order ID: #${orderData.orderId || change.doc.id.slice(0, 5)} - ₹${orderData.totalAmount || ""}`,
-            icon: "/favicon.ico", // Aapka logo path
-            silent: false, // Kuch browsers mein ye sound allow karta hai
+        // 2. Background Notification (Via Service Worker)
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'NEW_ORDER',
+            title: 'Naya Order Aaya Hai! 🍔',
+            body: `Order ID: #${orderData.orderId || change.doc.id.slice(0, 5)}`
           });
+        } else {
+          // Fallback: Agar SW controller ready nahi hai
+          new Notification("Naya Order! 🍔", { body: "Check dashboard now" });
         }
       }
     }
   });
   setOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
 });
-
 
     // History (Last 2 Hours)
     const twoHoursAgo = new Date();
