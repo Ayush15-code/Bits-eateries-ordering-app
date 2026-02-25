@@ -102,33 +102,37 @@ export default function MerchantDash() {
     );
     
     const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
+  // 1. Pehle orders ki list update karo taaki UI turant dikhe (Bina reload ke)
+  const updatedOrders = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+  setOrders(updatedOrders); // State update
+
+  // 2. Sound aur Notification logic
   snap.docChanges().forEach((change) => {
+    // Sirf tab trigger karo jab sach mein naya document ADD hua ho
     if (change.type === "added") {
       const orderData = change.doc.data();
       const orderTime = orderData.createdAt?.toMillis() || Date.now();
       const now = Date.now();
 
       if (now - orderTime < 30000) {
-        // 1. Awaaz (Tab open hone par)
+        // Sound Play
         if (audioRef.current) {
           audioRef.current.play().catch(e => console.log("Sound blocked"));
         }
 
-        // 2. Background Notification (Via Service Worker)
+        // SW Notification
         if (navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({
             type: 'NEW_ORDER',
             title: 'Naya Order Aaya Hai! 🍔',
             body: `Order ID: #${orderData.orderId || change.doc.id.slice(0, 5)}`
           });
-        } else {
-          // Fallback: Agar SW controller ready nahi hai
-          new Notification("Naya Order! 🍔", { body: "Check dashboard now" });
         }
       }
     }
   });
-  setOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+}, (error) => {
+  console.error("Firestore Error:", error);
 });
 
     // History (Last 2 Hours)
