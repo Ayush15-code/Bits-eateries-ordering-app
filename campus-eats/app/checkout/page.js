@@ -107,6 +107,12 @@ export default function Checkout() {
 
   const handleFinalPayment = async () => {
     if (cart.length === 0) return;
+    
+    const isIOS = [
+      'iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod'
+    ].includes(navigator.platform) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+
+    setShowPaymentOptions(true);
 
     const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank"; 
@@ -114,10 +120,7 @@ export default function Checkout() {
 
     const currentUserName = auth.currentUser?.displayName || user?.displayName || "BITS Student";
     const currentUserEmail = auth.currentUser?.email || user?.email || "";
-
-    // iOS Detection
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
+  
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const counterRef = doc(db, "internal", "order_counter");
@@ -169,11 +172,9 @@ export default function Checkout() {
         setDeviceType('android');
       }
 
-      setShowPaymentOptions(true);
-       
-
     } catch (e) {
       console.error("Payment Error: ", e);
+      setShowPaymentOptions(false);
       alert("Order failed.");
     }
   };
