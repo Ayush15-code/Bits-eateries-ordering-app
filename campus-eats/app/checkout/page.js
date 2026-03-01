@@ -17,6 +17,9 @@ export default function Checkout() {
   const [user, setUser] = useState(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [generatedUpiLinks, setGeneratedUpiLinks] = useState({
+  phonepe: '', gpay: '', paytm: '', default: ''
+});
   const [generatedUpiLink, setGeneratedUpiLink] = useState('');
   const [lastCreatedOrderId, setLastCreatedOrderId] = useState('');
   const [screenshotBase64, setScreenshotBase64] = useState("");
@@ -105,42 +108,38 @@ export default function Checkout() {
     setCart(cart.filter((_, i) => i !== index));
   };
 
-const handleFinalPayment = async () => {
+  const handleFinalPayment = async () => {
   if (cart.length === 0) return;
 
-  // 1. Better Detection Logic
-  const isIOS = [
-    'iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod'
-  ].includes(navigator.platform) || 
-  (navigator.userAgent.includes("Mac") && "ontouchend" in document) ||
-  /iPhone|iPad|iPod/.test(navigator.userAgent);
-
-  // 2. Open Modal Immediately (Bypass iOS blocks)
-  setShowPaymentOptions(true);
-  setIsUploading(true); // Isse modal mein loader dikhega
+  // iOS Detection: Navigator platform ko replace kiya safer regex se
+  const userAgent = window.navigator.userAgent || window.navigator.vendor || window.opera;
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
+                (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
 
   const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
   const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank"; 
   const merchantName = shop?.name || "CampusEats";
 
-  const currentUserName = auth.currentUser?.displayName || user?.displayName || "BITS Student";
-  const currentUserEmail = auth.currentUser?.email || user?.email || "";
-
-  // 3. Set Device Type and Links (Using 'isIOS' correctly now)
+  // Links ko transaction se pehle prepare kar lo taaki state foran set ho jaye
   const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
   
+  // States update karein transaction se PEHLE taaki UI crash na ho
   if (isIOS) {
+    setDeviceType('ios');
     setGeneratedUpiLinks({
       phonepe: `phonepe://pay?${baseParams}`,
       gpay: `googlegpay://pay?${baseParams}`,
       paytm: `paytmmp://pay?${baseParams}`,
       default: `upi://pay?${baseParams}`
     });
-    setDeviceType('ios'); // <--- Ab ye chalega
   } else {
-    setGeneratedUpiLink(`upi://pay?${baseParams}`);
     setDeviceType('android');
+    setGeneratedUpiLink(`upi://pay?${baseParams}`);
   }
+
+  // Ab Modal kholo
+  setShowPaymentOptions(true);
+  setIsUploading(true);
 
   try {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -160,8 +159,7 @@ const handleFinalPayment = async () => {
       transaction.set(newOrderRef, {
         orderId: nextId,
         userId: user?.uid || "unknown",
-        userName: currentUserName,
-        userEmail: currentUserEmail,
+        userName: auth.currentUser?.displayName || "BITS Student",
         items: cart,
         total: total,
         verificationCode: verificationCode,
@@ -169,12 +167,11 @@ const handleFinalPayment = async () => {
         createdAt: serverTimestamp(),
         shopId: shopId
       });
-      return { docId: newOrderRef.id, numericId: nextId };
+      return { docId: newOrderRef.id };
     });
 
     setLastCreatedOrderId(newOrderData.docId);
-    setLastNumericId(newOrderData.numericId);
-    setIsUploading(false); // Background work done!
+    setIsUploading(false);
 
   } catch (e) {
     console.error("Payment Error: ", e);
