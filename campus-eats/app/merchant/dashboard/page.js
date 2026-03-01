@@ -289,18 +289,52 @@ export default function MerchantDash() {
                     ))}
                   </div>
 
-                  <div className="space-y-2">
-                    {o.status === "AWAITING_VERIFICATION" && (
-                      <button onClick={() => setViewingScreenshot(o.screenshotBase64)} className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">View Payment Proof</button>
-                    )}
-                    <div className="flex gap-2">
-                      {o.status === "AWAITING_VERIFICATION" ? (
-                        <button onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Accept Payment</button>
-                      ) : (
-                        <button onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })} className="flex-1 bg-gray-900 dark:bg-white dark:text-black text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Mark Collected</button>
-                      )}
-                    </div>
-                  </div>
+                 <div className="space-y-2">
+  {o.status === "AWAITING_VERIFICATION" && (
+    <button 
+      onClick={() => setViewingScreenshot(o.screenshotBase64)} 
+      className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform"
+    >
+      View Payment Proof
+    </button>
+  )}
+  
+  <div className="flex gap-2">
+    {o.status === "AWAITING_VERIFICATION" ? (
+      <>
+        {/* Accept Button */}
+        <button 
+          onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })} 
+          className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
+        >
+          Accept Payment
+        </button>
+
+        {/* Highlighted Fix: New Reject Button */}
+        <button 
+          onClick={() => {
+            if(window.confirm("Are you sure you want to reject this payment?")) {
+              fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "REJECTED" });
+            }
+          }} 
+          className="px-4 bg-red-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
+        >
+          Reject
+        </button>
+      </>
+    ) : (
+      /* Status logic for confirmed/other orders */
+      o.status !== "COLLECTED" && (
+        <button 
+          onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })} 
+          className="flex-1 bg-gray-900 dark:bg-white dark:text-black text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
+        >
+          Mark Collected
+        </button>
+      )
+    )}
+  </div>
+</div>
 
 
                 </div>
