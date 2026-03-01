@@ -105,79 +105,84 @@ export default function Checkout() {
     setCart(cart.filter((_, i) => i !== index));
   };
 
-  const handleFinalPayment = async () => {
-    if (cart.length === 0) return;
-    
-    const isIOS = [
-      'iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod'
-    ].includes(navigator.platform) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+const handleFinalPayment = async () => {
+  if (cart.length === 0) return;
 
-    setShowPaymentOptions(true);
+  // 1. Better Detection Logic
+  const isIOS = [
+    'iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod'
+  ].includes(navigator.platform) || 
+  (navigator.userAgent.includes("Mac") && "ontouchend" in document) ||
+  /iPhone|iPad|iPod/.test(navigator.userAgent);
 
-    const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank"; 
-    const merchantName = shop?.name || "CampusEats";
+  // 2. Open Modal Immediately (Bypass iOS blocks)
+  setShowPaymentOptions(true);
+  setIsUploading(true); // Isse modal mein loader dikhega
 
-    const currentUserName = auth.currentUser?.displayName || user?.displayName || "BITS Student";
-    const currentUserEmail = auth.currentUser?.email || user?.email || "";
+  const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank"; 
+  const merchantName = shop?.name || "CampusEats";
+
+  const currentUserName = auth.currentUser?.displayName || user?.displayName || "BITS Student";
+  const currentUserEmail = auth.currentUser?.email || user?.email || "";
+
+  // 3. Set Device Type and Links (Using 'isIOS' correctly now)
+  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
   
-    // --- DYNAMIC UPI LOGIC ---
-      const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
-      
-       if (isIOS) {
-        // iPhone ke liye specific links taaki WhatsApp bypass ho sake
-        setGeneratedUpiLinks({
-          phonepe: `phonepe://pay?${baseParams}`,
-          gpay: `googlegpay://pay?${baseParams}`,
-          paytm: `paytmmp://pay?${baseParams}`,
-          default: `upi://pay?${baseParams}`
-        });
-        setDeviceType('ios');
-      } else {
-        // Android ke liye purana simple logic
-        setGeneratedUpiLink(`upi://pay?${baseParams}`);
-        setDeviceType('android');
+  if (isIOS) {
+    setGeneratedUpiLinks({
+      phonepe: `phonepe://pay?${baseParams}`,
+      gpay: `googlegpay://pay?${baseParams}`,
+      paytm: `paytmmp://pay?${baseParams}`,
+      default: `upi://pay?${baseParams}`
+    });
+    setDeviceType('ios'); // <--- Ab ye chalega
+  } else {
+    setGeneratedUpiLink(`upi://pay?${baseParams}`);
+    setDeviceType('android');
+  }
+
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const counterRef = doc(db, "internal", "order_counter");
+    const ordersCol = collection(db, "orders");
+
+    const newOrderData = await runTransaction(db, async (transaction) => {
+      const counterSnap = await transaction.get(counterRef);
+      let nextId = 1;
+      if (counterSnap.exists()) {
+        const data = counterSnap.data();
+        if (data.lastDate === todayStr) { nextId = data.currentCount + 1; }
       }
+      transaction.set(counterRef, { currentCount: nextId, lastDate: todayStr }, { merge: true });
 
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const counterRef = doc(db, "internal", "order_counter");
-      const ordersCol = collection(db, "orders");
-
-      const newOrderData = await runTransaction(db, async (transaction) => {
-        const counterSnap = await transaction.get(counterRef);
-        let nextId = 1;
-        if (counterSnap.exists()) {
-          const data = counterSnap.data();
-          if (data.lastDate === todayStr) { nextId = data.currentCount + 1; }
-        }
-        transaction.set(counterRef, { currentCount: nextId, lastDate: todayStr }, { merge: true });
-
-        const newOrderRef = doc(ordersCol);
-        transaction.set(newOrderRef, {
-          orderId: nextId,
-          userId: user?.uid || "unknown",
-          userName: currentUserName,
-          userEmail: currentUserEmail,
-          items: cart,
-          total: total,
-          verificationCode: verificationCode,
-          status: "PENDING_SCREENSHOT",
-          createdAt: serverTimestamp(),
-          shopId: shopId
-        });
-        return { docId: newOrderRef.id, numericId: nextId };
+      const newOrderRef = doc(ordersCol);
+      transaction.set(newOrderRef, {
+        orderId: nextId,
+        userId: user?.uid || "unknown",
+        userName: currentUserName,
+        userEmail: currentUserEmail,
+        items: cart,
+        total: total,
+        verificationCode: verificationCode,
+        status: "PENDING_SCREENSHOT",
+        createdAt: serverTimestamp(),
+        shopId: shopId
       });
+      return { docId: newOrderRef.id, numericId: nextId };
+    });
 
-      setLastCreatedOrderId(newOrderData.docId);
-      setLastNumericId(newOrderData.numericId);
+    setLastCreatedOrderId(newOrderData.docId);
+    setLastNumericId(newOrderData.numericId);
+    setIsUploading(false); // Background work done!
 
-    } catch (e) {
-      console.error("Payment Error: ", e);
-      setShowPaymentOptions(false);
-      alert("Order failed.");
-    }
-  };
+  } catch (e) {
+    console.error("Payment Error: ", e);
+    setIsUploading(false);
+    setShowPaymentOptions(false);
+    alert("Order failed. Please try again.");
+  }
+};
 
   const handleSubmitScreenshot = async () => {
     if (!screenshotBase64 || !lastCreatedOrderId) return;
