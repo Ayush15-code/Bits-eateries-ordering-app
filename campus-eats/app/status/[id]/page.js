@@ -32,20 +32,22 @@ export default function OrderStatus() {
   // --- UPDATED STATUS LOGIC TO MATCH CHECKOUT.JS ---
   const getStatusConfig = (status) => {
     switch (status) {
+      case "REJECTED":
+        return { index: 0, label: "Rejected", sub: "Payment Verification Failed", color: "text-red-500" };
       case "PENDING_SCREENSHOT": 
-        return { index: 0, label: "Payment", sub: "Waiting for Screenshot" };
+        return { index: 0, label: "Payment", sub: "Waiting for Screenshot", color: "text-orange-500" };
       case "AWAITING_VERIFICATION": 
-        return { index: 1, label: "Verifying", sub: "Merchant checking payment" };
+        return { index: 1, label: "Verifying", sub: "Merchant checking payment", color: "text-blue-500" };
       case "CONFIRMED":
       case "ACCEPTED":
       case "PREPARING":
-        return { index: 2, label: "Cooking", sub: "Chef is on it" };
+        return { index: 2, label: "Cooking", sub: "Chef is on it", color: "text-orange-500" };
       case "READY":
-        return { index: 3, label: "Ready", sub: "Pick up from counter" };
+        return { index: 3, label: "Ready", sub: "Pick up from counter", color: "text-green-500" };
       case "COLLECTED":
-        return { index: 4, label: "Done", sub: "Order Completed" };
+        return { index: 4, label: "Done", sub: "Order Completed", color: "text-gray-500" };
       default:
-        return { index: 0, label: "Pending", sub: "Processing..." };
+        return { index: 0, label: "Pending", sub: "Processing...", color: "text-orange-500" };
     }
   };
 
@@ -103,6 +105,39 @@ export default function OrderStatus() {
       </div>
     );
   }
+
+  if (order.status === 'REJECTED') {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-500">
+        <div className="mb-8 w-24 h-24 bg-red-500/10 rounded-[2.5rem] flex items-center justify-center text-5xl shadow-2xl shadow-red-500/20 border border-red-500/20">❌</div>
+        <h1 className="text-4xl font-black text-red-500 mb-2 italic tracking-tighter uppercase">Rejected</h1>
+        <p className="text-gray-500 mb-8 text-[10px] font-bold uppercase tracking-[0.2em] max-w-[200px] mx-auto">
+          Your payment screenshot was not verified by the merchant.
+        </p>
+
+        <div className="w-full max-w-xs bg-red-500/5 border border-red-500/10 rounded-[2.5rem] p-8 mb-10">
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-red-500/40 mb-2">Token Number</p>
+          <p className={`font-black text-[120px] leading-none italic tracking-tighter transition-all duration-500
+  ${order.status === 'READY' ? 'text-green-500' : 'text-white'}`}>
+  {/* Fallback to short ID if orderId is missing */}
+  {order.orderId || order.id?.slice(-3).toUpperCase() || "..."}
+</p>
+        </div>
+
+       <button 
+  onClick={() => {
+    // Local storage se active order ID hatao taaki status bar gayab ho jaye
+    localStorage.removeItem('activeOrderId'); 
+    router.push('/eatery');
+  }} 
+  className="w-full max-w-xs bg-red-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl active:scale-95 transition-all"
+>
+  Try Again
+</button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#050505] flex flex-col items-center p-6 pt-10">
       
@@ -123,20 +158,37 @@ export default function OrderStatus() {
       {/* --- PROGRESS BAR --- */}
       <div className="w-full max-w-sm mb-16 relative px-2">
         <div className="flex justify-between mb-4">
-          {steps.map((s, i) => (
-            <div key={i} className="flex flex-col items-center gap-2 relative z-10">
-              <div className={`text-[9px] font-black uppercase tracking-tighter transition-colors duration-500 ${i <= currentStatus.index ? 'text-orange-500' : 'text-white/10'}`}>
-                {s}
+          {steps.map((s, i) => {
+            const isRejected = order?.status === 'REJECTED';
+            const isActive = i <= currentStatus.index;
+            
+            return (
+              <div key={i} className="flex flex-col items-center gap-2 relative z-10">
+                <div className={`text-[9px] font-black uppercase tracking-tighter transition-colors duration-500 
+                  ${isRejected ? 'text-red-500/40' : (isActive ? 'text-orange-500' : 'text-white/10')}`}>
+                  {s}
+                </div>
+                <div className={`w-2 h-2 rounded-full transition-all duration-500 
+                  ${isRejected 
+                    ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' 
+                    : (isActive ? 'bg-orange-500 scale-125 shadow-[0_0_10px_#f97316]' : 'bg-white/10')
+                  }`} 
+                />
               </div>
-              <div className={`w-2 h-2 rounded-full transition-all duration-500 ${i <= currentStatus.index ? 'bg-orange-500 scale-125 shadow-[0_0_10px_#f97316]' : 'bg-white/10'}`} />
-            </div>
-          ))}
+            );
+          })}
         </div>
+        
         {/* Track Line */}
         <div className="absolute top-[24px] left-8 right-8 h-[1px] bg-white/5 -z-0" />
         <div 
-          className="absolute top-[24px] left-8 h-[1px] bg-orange-500 -z-0 transition-all duration-1000 ease-in-out" 
-          style={{ width: `${Math.min((currentStatus.index / (steps.length - 1)) * 100, 85)}%` }}
+          className={`absolute top-[24px] left-8 h-[1px] -z-0 transition-all duration-1000 ease-in-out 
+            ${order?.status === 'REJECTED' ? 'bg-red-500' : 'bg-orange-500'}`} 
+          style={{ 
+            width: order?.status === 'REJECTED' 
+              ? '100%' 
+              : `${Math.min((currentStatus.index / (steps.length - 1)) * 100, 85)}%` 
+          }}
         />
       </div>
 

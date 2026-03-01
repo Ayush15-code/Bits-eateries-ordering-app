@@ -343,39 +343,72 @@ export default function MerchantDash() {
           </div>
         )}
 
-        {/* --- Merchant History Tab Section --- */}
-        {activeTab === 'history' && (
-          <div className="space-y-4">
-            {historyOrders.map((o) => (
-              <div key={o.id} className="bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-black italic dark:text-white">#{o.orderId}</h3>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{o.userName}</p>
-                  </div>
-                  <span className="bg-green-100 dark:bg-green-900/30 text-green-600 px-3 py-1 rounded-full text-[8px] font-black uppercase">Collected</span>
+       {/* --- Merchant History Tab Section --- */}
+{activeTab === 'history' && (
+  <div className="space-y-4 animate-in fade-in duration-500">
+    {historyOrders.length === 0 ? (
+      <div className="text-center py-20 opacity-20 italic">
+        <History size={48} className="mx-auto mb-4" />
+        <p className="text-[10px] font-black uppercase">No Recent History</p>
+      </div>
+    ) : (
+      historyOrders.map((o) => {
+        const isRejected = o.status === 'REJECTED';
+        return (
+          <div 
+            key={o.id} 
+            className={`bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border shadow-sm transition-all
+              ${isRejected ? 'border-red-500/20 bg-red-50/30 dark:bg-red-950/10' : 'border-gray-100 dark:border-gray-800'}
+            `}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                   <h3 className={`text-xl font-black italic ${isRejected ? 'text-red-500' : 'dark:text-white'}`}>
+                     #{o.orderId || o.id?.slice(-4).toUpperCase()}
+                   </h3>
+                   {isRejected && <span className="text-[10px] font-black text-red-500 uppercase tracking-tighter">FAILED</span>}
                 </div>
-
-                <div className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-3xl mb-4">
-                  {/* CHANGE HERE: direct o.items use kar rahe hain brackets bypass karne ke liye */}
-                  {o.items.map((item, idx) => (
-                    <p key={idx} className="text-sm font-bold dark:text-gray-200">
-                      <span className="text-orange-600 mr-2">{item.quantity}x</span>
-                      {/* Name aur Category ko merge kar rahe hain bina brackets ke */}
-                      {item.name} {item.category && item.category !== "General" ? item.category : ""}
-                    </p>
-                  ))}
-                </div>
-
-                <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400">
-                  <span>Placed: {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className="text-green-600">Picked: {new Date(o.collectedAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  {o.userName || "Unknown Student"}
+                </p>
               </div>
-            ))}
-          </div>
-        )}
+              
+              {/* Status Badge */}
+              <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest
+                ${isRejected 
+                  ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' 
+                  : 'bg-green-100 dark:bg-green-900/30 text-green-600'}
+              `}>
+                {isRejected ? 'REJECTED' : 'COLLECTED'}
+              </span>
+            </div>
 
+            {/* Items List */}
+            <div className={`p-4 rounded-3xl mb-4 ${isRejected ? 'bg-red-500/5' : 'bg-gray-50 dark:bg-gray-800/40'}`}>
+              {o.items?.map((item, idx) => (
+                <p key={idx} className={`text-sm font-bold ${isRejected ? 'text-red-900/40 dark:text-red-400/40 line-through' : 'dark:text-gray-200'}`}>
+                  <span className={`${isRejected ? 'text-red-400' : 'text-orange-600'} mr-2`}>{item.quantity}x</span>
+                  {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                </p>
+              ))}
+            </div>
+
+            {/* Timestamps */}
+            <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400 px-1">
+              <span className="flex items-center gap-1"><Clock size={10}/> {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              {isRejected ? (
+                <span className="text-red-500">PAYMENT REJECTED</span>
+              ) : (
+                <span className="text-green-600 italic font-black">PICKED: {new Date(o.collectedAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              )}
+            </div>
+          </div>
+        );
+      })
+    )}
+  </div>
+)}
         {/* --- MANAGE TAB --- */}
         {activeTab === 'manage' && (
           <div className="space-y-6">

@@ -255,25 +255,27 @@ export default function EateriesList() {
       </div>
 
       {/* --- STATUS BAR (OPTIMIZED) --- */}
-      {activeOrder && (
-        <div 
-          onClick={() => router.push(`/status/${activeOrder.id}`)}
-          className={`fixed left-0 right-0 z-50 px-4 flex justify-center transition-all duration-500 ${cart.length > 0 ? 'bottom-32' : 'bottom-8'}`}
-        >
-          <div className="w-full max-w-md bg-orange-600 text-white p-4 rounded-[2.2rem] shadow-2xl flex items-center justify-between border border-white/10 active:scale-[0.98] transition-all animate-in slide-in-from-bottom-5">
-            <div className="flex items-center gap-3 pl-2">
-              <div className="bg-white/20 p-2 rounded-xl animate-pulse">
-                <Clock size={18} strokeWidth={3} />
-              </div>
-              <div>
-                <p className="text-[9px] font-black uppercase opacity-60 tracking-widest leading-none mb-1">Active Order • Token #{activeOrder.orderId}</p>
-                <p className="font-black text-xs uppercase italic tracking-tight leading-none">Status: {activeOrder.status?.replace('_', ' ')}</p>
-              </div>
-            </div>
-            <div className="pr-2 opacity-40"><ChevronRight size={20} /></div>
-          </div>
-        </div>
-      )}
+      {activeOrder && activeOrder.status !== 'COLLECTED' && activeOrder.status !== 'REJECTED' && (
+  <div 
+    onClick={() => router.push(`/order-status/${activeOrder.id}`)}
+    className="fixed bottom-24 left-6 right-6 bg-orange-600 p-4 rounded-[2rem] shadow-2xl flex items-center justify-between z-40 active:scale-95 transition-all cursor-pointer"
+  >
+    <div className="flex items-center gap-4">
+      <div className="bg-white/20 p-3 rounded-2xl">
+        <Clock className="text-white animate-pulse" size={20} />
+      </div>
+      <div>
+        <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">
+          Active Order • Token #{activeOrder.orderId || activeOrder.id?.slice(-3).toUpperCase()}
+        </p>
+        <p className="text-white font-black italic uppercase text-xs">
+          Status: {activeOrder.status.replace('_', ' ')}
+        </p>
+      </div>
+    </div>
+    <ChevronRight className="text-white/40" size={20} />
+  </div>
+)}
 
       {/* --- CART BANNER (Existing) --- */}
       {cart.length > 0 && (

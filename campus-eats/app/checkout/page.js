@@ -167,10 +167,11 @@ export default function Checkout() {
         createdAt: serverTimestamp(),
         shopId: shopId
       });
-      return { docId: newOrderRef.id };
+      return { docId: newOrderRef.id, numericId: nextId };
     });
 
     setLastCreatedOrderId(newOrderData.docId);
+    setLastNumericId(newOrderData.numericId);
     setIsUploading(false);
 
   } catch (e) {
