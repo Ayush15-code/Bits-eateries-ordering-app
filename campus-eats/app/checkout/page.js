@@ -22,7 +22,7 @@ export default function Checkout() {
   const [screenshotBase64, setScreenshotBase64] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [lastNumericId, setLastNumericId] = useState(null);
-
+  const [deviceType, setDeviceType] = useState('android');
   const router = useRouter();
 
   useEffect(() => {
@@ -109,14 +109,14 @@ export default function Checkout() {
     if (cart.length === 0) return;
 
     const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-    
-    // Screenshot ke mutabiq shop metadata se dynamic UPI aur Name uthayein
-    // Agar shop variable mein data nahi hai, toh ye fallback use karega
     const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank"; 
     const merchantName = shop?.name || "CampusEats";
 
     const currentUserName = auth.currentUser?.displayName || user?.displayName || "BITS Student";
     const currentUserEmail = auth.currentUser?.email || user?.email || "";
+
+    // iOS Detection
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     try {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -151,12 +151,27 @@ export default function Checkout() {
       setLastCreatedOrderId(newOrderData.docId);
       setLastNumericId(newOrderData.numericId);
 
-      // --- DYNAMIC UPI LINK UPDATE ---
-      // Yahan static 'paytmqr...' ko hata kar merchantUpi variable use kiya hai
-      const upi = `upi://pay?pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
+      // --- DYNAMIC UPI LOGIC ---
+      const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
       
-      setGeneratedUpiLink(upi);
+      if (isIOS) {
+        // iPhone ke liye specific links taaki WhatsApp bypass ho sake
+        setGeneratedUpiLinks({
+          phonepe: `phonepe://pay?${baseParams}`,
+          gpay: `googlegpay://pay?${baseParams}`,
+          paytm: `paytmmp://pay?${baseParams}`,
+          default: `upi://pay?${baseParams}`
+        });
+        setDeviceType('ios');
+      } else {
+        // Android ke liye purana simple logic
+        setGeneratedUpiLink(`upi://pay?${baseParams}`);
+        setDeviceType('android');
+      }
+
       setShowPaymentOptions(true);
+       
+
     } catch (e) {
       console.error("Payment Error: ", e);
       alert("Order failed.");
@@ -274,39 +289,65 @@ export default function Checkout() {
       )}
 
       {showPaymentOptions && (
-        <div className="fixed inset-0 bg-black/60 dark:bg-black/98 backdrop-blur-xl z-50 flex items-center justify-center p-6">
-          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800">
-            <h2 className="text-xl font-black text-center mb-8 text-black dark:text-white uppercase italic tracking-tighter">Payment Proof</h2>
+  <div className="fixed inset-0 bg-black/60 dark:bg-black/98 backdrop-blur-xl z-50 flex items-center justify-center p-6">
+    <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800">
+      <h2 className="text-xl font-black text-center mb-8 text-black dark:text-white uppercase italic tracking-tighter">Payment Proof</h2>
 
-            <div className="space-y-6">
-              <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-3xl border border-orange-100 dark:border-orange-900/30 flex flex-col items-center">
-                <button onClick={() => window.location.href = generatedUpiLink} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black text-[11px] uppercase flex items-center justify-center gap-3 mb-5 shadow-xl shadow-orange-600/20 active:scale-95">
-                  <Smartphone size={18} /> Open UPI App
-                </button>
-                <div className="bg-white p-3 rounded-2xl shadow-sm">
-                  <QRCodeSVG value={generatedUpiLink} size={140} />
-                </div>
+      <div className="space-y-6">
+        {/* --- DYNAMIC SECTION BASED ON DEVICE --- */}
+        <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-3xl border border-orange-100 dark:border-orange-900/30 flex flex-col items-center">
+          
+          {deviceType === 'ios' ? (
+            /* iOS GRID: Specific apps to bypass WhatsApp */
+            <div className="w-full space-y-3 mb-5">
+              <p className="text-center text-[8px] font-black text-orange-600 uppercase mb-2 tracking-widest">Select Payment App</p>
+              <div className="grid grid-cols-2 gap-2">
+                <a href={generatedUpiLinks.phonepe} className="bg-purple-600 text-white p-3 rounded-xl text-[10px] font-black uppercase text-center active:scale-95 transition-transform">PhonePe</a>
+                <a href={generatedUpiLinks.gpay} className="bg-blue-600 text-white p-3 rounded-xl text-[10px] font-black uppercase text-center active:scale-95 transition-transform">GPay</a>
+                <a href={generatedUpiLinks.paytm} className="bg-sky-500 text-white p-3 rounded-xl text-[10px] font-black uppercase text-center active:scale-95 transition-transform">Paytm</a>
+                <a href={generatedUpiLinks.default} className="bg-gray-800 text-white p-3 rounded-xl text-[10px] font-black uppercase text-center active:scale-95 transition-transform">Others</a>
               </div>
-
-              <div className="space-y-3">
-                <p className="text-[9px] font-black text-gray-400 uppercase text-center tracking-[0.2em]">Upload Payment Screenshot</p>
-                <label className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] cursor-pointer overflow-hidden bg-gray-50 dark:bg-black/20">
-                  {screenshotBase64 ? (
-                    <img src={screenshotBase64} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <Camera className="text-gray-300 dark:text-white/10" size={32} />
-                  )}
-                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                </label>
-              </div>
-
-              <button onClick={handleSubmitScreenshot} disabled={!screenshotBase64 || isUploading} className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 transition-all">
-                {isUploading ? <Loader2 className="animate-spin" size={16} /> : "Confirm Order"}
-              </button>
             </div>
+          ) : (
+            /* ANDROID LOGIC: Same as your original code */
+            <button 
+              onClick={() => window.location.href = generatedUpiLink} 
+              className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black text-[11px] uppercase flex items-center justify-center gap-3 mb-5 shadow-xl shadow-orange-600/20 active:scale-95"
+            >
+              <Smartphone size={18} /> Open UPI App
+            </button>
+          )}
+
+          {/* QR Code (Visible for both, good backup for iOS too) */}
+          <div className="bg-white p-3 rounded-2xl shadow-sm">
+            <QRCodeSVG value={deviceType === 'ios' ? generatedUpiLinks.default : generatedUpiLink} size={140} />
           </div>
         </div>
-      )}
+
+        {/* --- COMMON UPLOAD SECTION --- */}
+        <div className="space-y-3">
+          <p className="text-[9px] font-black text-gray-400 uppercase text-center tracking-[0.2em]">Upload Payment Screenshot</p>
+          <label className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] cursor-pointer overflow-hidden bg-gray-50 dark:bg-black/20">
+            {screenshotBase64 ? (
+              <img src={screenshotBase64} alt="Preview" className="w-full h-full object-cover" />
+            ) : (
+              <Camera className="text-gray-300 dark:text-white/10" size={32} />
+            )}
+            <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+          </label>
+        </div>
+
+        <button 
+          onClick={handleSubmitScreenshot} 
+          disabled={!screenshotBase64 || isUploading} 
+          className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 transition-all"
+        >
+          {isUploading ? <Loader2 className="animate-spin" size={16} /> : "Confirm Order"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
