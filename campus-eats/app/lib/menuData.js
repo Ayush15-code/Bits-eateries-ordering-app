@@ -1,199 +1,171 @@
-// lib/multiEateryData.js
 export const allEateries = {
-  "campus-bites": {
-    name: "campus-bites",
-    theme: "bg-orange-50",
+  "gimi-gimi": {
+    name: "GimiGimi",
+    theme: "bg-red-50",
     menu: [
+      // --- GIMIGIMI KOREAN MAIN CATEGORY ---
       {
-      "category": "DOSA",
-      "headers": ["Plain", "Butter/Cheese", "Ghee"],
-      "items": [
-        { "name": "PLAIN", "prices": [40, 55, 64] },
-        { "name": "MYSORE PLAIN", "prices": [50, 65, 74] },
-        { "name": "ANDHRA MIRCHI", "prices": [50, 65, 74] },
-        { "name": "PAPER PLAIN", "prices": [50, 65, 74] },
-        { "name": "PODI", "prices": [50, 65, 74] },
-        { "name": "MASALA", "prices": [55, 70, 79] },
-        { "name": "ONION", "prices": [55, 70, 79] },
-        { "name": "MYSORE ONION", "prices": [60, 75, 84] },
-        { "name": "MYSORE MASALA", "prices": [60, 75, 84] },
-        { "name": "PAPER MASALA", "prices": [60, 75, 84] },
-        { "name": "EGG", "prices": [60, 75, 84] },
-        { "name": "ANDHRA MIRCHI MASALA", "prices": [60, 75, 84] },
-        { "name": "GHEE ROAST", "prices": [65, null, null] },
-        { "name": "ONION MASALA", "prices": [65, 70, 84] },
-        { "name": "EGG MYSORE", "prices": [65, 80, 89] },
-        { "name": "EGG PODI", "prices": [65, 80, 89] },
-        { "name": "EGG ANDHRA MIRCHI", "prices": [65, 80, 89] },
-        { "name": "MYSORE ONION MASALA", "prices": [70, 85, 94] },
-        { "name": "PANEER", "prices": [75, 90, 94] },
-        { "name": "MYSORE PANEER", "prices": [80, 95, 104] }
-      ]
-    },
-    {
-      "category": "RAVA DOSA",
-      "headers": ["Plain", "Butter/Cheese", "Ghee"],
-      "items": [
-        { "name": "PLAIN", "prices": [40, 55, 64] },
-        { "name": "MYSORE PLAIN", "prices": [50, 65, 74] },
-        { "name": "ANDHRA MIRCHI PLAIN", "prices": [50, 65, 74] },
-        { "name": "MASALA", "prices": [55, 70, 79] },
-        { "name": "ONION RAVA", "prices": [55, 70, 79] },
-        { "name": "MYSORE MASALA", "prices": [60, 75, 84] },
-        { "name": "MYSORE ONION", "prices": [60, 75, 84] },
-        { "name": "ONION MASALA", "prices": [70, 85, 94] },
-        { "name": "MYSORE ONION MASALA", "prices": [70, 85, 94] },
-        { "name": "PANEER", "prices": [75, 90, 99] }
-      ]
-    },
-    {
-      "category": "UTHAPPAM",
-      "headers": ["Plain", "Butter/Cheese", "Ghee"],
-      "items": [
-        { "name": "PLAIN", "prices": [40, 55, 64] },
-        { "name": "PODI", "prices": [50, 65, 74] },
-        { "name": "ONION", "prices": [55, 70, 74] },
-        { "name": "TOMATO", "prices": [55, 70, 74] },
-        { "name": "MASALA", "prices": [55, 70, 74] },
-        { "name": "ONION MASALA", "prices": [65, 80, 89] },
-        { "name": "ONION TOMATO", "prices": [65, 80, 89] },
-        { "name": "ONION TOMATO MASALA", "prices": [70, 85, 94] },
-        { "name": "PODI ONION TOMATO", "prices": [70, 85, 94] }
-      ]
-    },
-    {
-      "category": "PARATHA 2 (Pcs)",
-      "items": [
-        { "name": "ALOO", "price": 60 },
-        { "name": "GOBI", "price": 60 },
-        { "name": "ONION", "price": 60 },
-        { "name": "MIX (Aloo & Onion)", "price": 70 },
-        { "name": "PANEER", "price": 80 },
-        { "name": "MIX (Onion & Paneer)", "price": 90, "extra": "EXTRA BUTTER RS.15 Extra GHEE RS.24" },
-        { "name": "POORI SABJI", "price": 50 },
-        { "name": "CHOLE BHATURE", "price": 80 }
-      ]
-    },
-    {
-      "category": "MAGGI",
-      "items": [
-        { "name": "PLAIN", "price": 35 },
-        { "name": "MASALA", "price": 45 },
-        { "name": "FRIED", "price": 44 },
-        { "name": "CHEESE", "price": 50 },
-        { "name": "MASALA CHEESE", "price": 60 },
-        { "name": "FRIED CHEESE", "price": 60 },
-        { "name": "PANEER FRIED", "price": 65 },
-        { "name": "PANEER FRIED CHEESE", "price": 75 },
-        { "name": "CHICKEN", "price": 65 }
-      ]
-    },
-    {
-      "category": "BURGER",
-      "items": [
-        { "name": "VEG", "price": 40 },
-        { "name": "VEG CHEESE", "price": 55 },
-        { "name": "CHICKEN", "price": 60 },
-        { "name": "CHICKEN CHEESE", "price": 70 }
-      ]
-    },
-    {
-        category: "OMELET",
+        category: "KOREAN RAMYUN",
+        isNested: true,
+        subCategories: [
+          {
+            name: "FIERY HOT",
+            items: [
+              { name: "Original", price: 110 },
+              { name: "Veg", price: 130 },
+              { name: "Egg", price: 130 },
+              { name: "Chicken", price: 150 }
+            ]
+          },
+          {
+            name: "VEG CARBONARA",
+            items: [
+              { name: "Original", price: 110 },
+              { name: "Veg", price: 130 },
+              { name: "Egg", price: 130 },
+              { name: "Chicken", price: 150 }
+            ]
+          },
+          {
+            name: "K-CURRY",
+            items: [
+              { name: "Original", price: 110 },
+              { name: "Veg", price: 130 },
+              { name: "Egg", price: 130 },
+              { name: "Chicken", price: 150 }
+            ]
+          },
+          {
+            name: "KILLER KIMCHI",
+            items: [
+              { name: "Original", price: 110 },
+              { name: "Veg", price: 130 },
+              { name: "Egg", price: 130 },
+              { name: "Chicken", price: 150 }
+            ]
+          },
+          {
+            name: "HOT CHEESE",
+            items: [
+              { name: "Original", price: 110 },
+              { name: "Veg", price: 130 },
+              { name: "Egg", price: 130 },
+              { name: "Chicken", price: 150 }
+            ]
+          },
+          {
+            name: "SOULFUL UMAMI",
+            items: [
+              { name: "Original", price: 110 },
+              { name: "Veg", price: 130 },
+              { name: "Egg", price: 130 },
+              { name: "Chicken", price: 150 }
+            ]
+          }
+        ]
+      },
+
+      // --- OLD MENU CATEGORIES ---
+      {
+        category: "BURGER",
         items: [
-          { name: "Single Omelet", price: 20 },
-          { name: "Single Masala Omelet", price: 25 },
-          { name: "Double Omelet", price: 35 },
-          { name: "Single Bread Omelet", price: 35 },
-          { name: "Double Bread Omelet", price: 50 },
-          { name: "Masala Double Bread Omelet", price: 60 }
+          { name: "Veg Burger", price: 50 },
+          { name: "Chicken Burger", price: 60 },
+          { name: "Veg Cheese Burger", price: 70 },
+          { name: "Chicken Cheese Burger", price: 80 }
         ]
       },
       {
-        category: "QUICK BITES",
+        category: "SHAWARMA",
         items: [
-          { name: "Veg Patties", price: 20 },
-          { name: "Egg Patties", price: 25 },
-          { name: "Paneer", price: 25 },
-          { name: "Chocolate Donuts", price: 35 },
-          { name: "Chicken Patties", price: 35 }
+          { name: "Regular Shawarma", price: 70 },
+          { name: "Meat Shawarma", price: 110 },
+          { name: "Cheese Shawarma", price: 90 },
+          { name: "Spicy Cheese Shawarma", price: 100 },
+          { name: "Plate Shawarma", price: 120 },
+          { name: "Plate Meat Shawarma", price: 150 }
         ]
       },
       {
-        category: "SANDWICH",
+        category: "MAGGI SPECIALS",
         items: [
-          { name: "Bread Butter", price: 35 },
-          { name: "Masala", price: 40 },
-          { name: "Plain Cheese", price: 40 },
-          { name: "Masala Cheese", price: 55 },
-          { name: "Veg (Masala)", price: 50 },
-          { name: "Egg", price: 65 },
-          { name: "Paneer", price: 65 },
-          { name: "Chicken", price: 70 }
+          { name: "Plain Maggi", price: 40 },
+          { name: "Cheese Maggi", price: 60 },
+          { name: "Cheese Garlic Maggi", price: 70 },
+          { name: "Butter Garlic Maggi", price: 60 },
+          { name: "Oregano Cheese Maggi", price: 70 },
+          { name: "Masala Cheese Maggi", price: 70 },
+          { name: "Peri Peri Maggi", price: 50 },
+          { name: "Peri Peri Cheese Maggi", price: 70 },
+          { name: "Extra Cheese", price: 15 }
         ]
       },
       {
-        category: "FRANKIES",
+        category: "FRIED RICE",
         items: [
-          { name: "Veg Frankie", price: 40 },
-          { name: "Egg Frankie", price: 45 },
-          { name: "Paneer Frankie", price: 50 },
-          { name: "Chicken Frankie", price: 60 }
+          { name: "Veg Fried Rice", price: 70 },
+          { name: "Veg Schezwan Fried Rice", price: 80 },
+          { name: "Egg Fried Rice", price: 80 },
+          { name: "Egg Schezwan Fried Rice", price: 90 },
+          { name: "Chicken Fried Rice", price: 100 },
+          { name: "Chicken Schezwan Fried Rice", price: 110 }
         ]
       },
       {
-        category: "FRESH FRUIT JUICE",
+        category: "MOMOS & SIDES",
         items: [
-          { name: "Mosambi", price: 48 },
-          { name: "Orange", price: 48 },
-          { name: "Water Melon", price: 48 },
-          { name: "Pineapple", price: 48 }
+          { name: "Veg Momos", price: 70 },
+          { name: "Veg Fried Momos", price: 90 },
+          { name: "Chicken Momos", price: 80 },
+          { name: "Chicken Fried Momos", price: 100 },
+          { name: "Plain Fries", price: 70 },
+          { name: "Masala Fries", price: 80 }
         ]
       },
       {
-        category: "MILK SHAKES",
+        category: "ROLLS & OMELET",
         items: [
-          { name: "Banana", price: 48 },
-          { name: "Badam", price: 54 },
-          { name: "Oreo", price: 58 },
-          { name: "Apple", price: 60 },
-          { name: "Annar", price: 60 },
-          { name: "Coffee Oreo", price: 65 }
+          { name: "Veg / Egg Roll", price: 60 },
+          { name: "Paneer Roll", price: 60 },
+          { name: "Chicken Roll", price: 70 },
+          { name: "Soya Chaap Roll", price: 80 },
+          { name: "Chicken Egg Roll", price: 100 },
+          { name: "Plain Omelet", price: 40 },
+          { name: "Masala Omelette", price: 50 },
+          { name: "Add Cheese", price: 20 }
         ]
       },
       {
-        category: "HOT BEVERAGES",
+        category: "SANDWICHES",
         items: [
-          { name: "Coffee", price: 15 },
-          { name: "Tea", price: 15 },
-          { name: "Black Tea", price: 15 },
-          { name: "Black Coffee", price: 15 },
-          { name: "Hot Bournvita", price: 40 },
-          { name: "Hot Boost", price: 40 },
-          { name: "Hot Horlicks", price: 40 },
-          { name: "Hot Badam", price: 40 }
+          { name: "Veg Sandwich", price: 50 },
+          { name: "Veg Cheese Grilled", price: 70 },
+          { name: "Chicken Sandwich", price: 60 },
+          { name: "Chicken Cheese Sandwich", price: 80 },
+          { name: "Corn/Paneer Sandwich", price: 60 },
+          { name: "Corn/Paneer Cheese Sandwich", price: 80 }
         ]
       },
       {
-        category: "COLD BEVERAGES",
+        category: "MAIN COURSE & BOWLS",
         items: [
-          { name: "Cold Coffee", price: 45 },
-          { name: "Cold Bournvita", price: 45 },
-          { name: "Cold Boost", price: 45 },
-          { name: "Cold Horlicks", price: 45 },
-          { name: "Rose Milk", price: 45 }
+          { name: "Paneer Bowl with Rice", price: 230 },
+          { name: "Chicken Bowl with Rice", price: 200 },
+          { name: "Tandoori Chicken / Paneer Tikka", price: 200 },
+          { name: "Tandoori Soya Chaap", price: 150 },
+          { name: "Tandoori Chicken Gravy + 2 Paratha", price: 240 },
+          { name: "Boneless Chicken Gravy + 2 Paratha", price: 240 },
+          { name: "Paneer Butter Masala (S) + 2 Paratha", price: 190 },
+          { name: "Paneer Butter Masala (L) + 2 Paratha", price: 240 }
         ]
-      }
-    ]
-  },
-  "bits-canteen": {
-    name: "BITS Canteen",
-    theme: "bg-blue-50",
-    menu: [
+      },
       {
         category: "BEVERAGES",
         items: [
-          { name: "TEA", price: 10 },
-          { name: "COFFEE", price: 15 }
+          { name: "Oreo Shake", price: 60 },
+          { name: "Cold Coffee / Chocolate / Banana Shake", price: 50 },
+          { name: "Fresh Juice (W.melon/Pine/Mos/Org)", price: 50 },
+          { name: "Mix Juice", price: 60 }
         ]
       }
     ]
