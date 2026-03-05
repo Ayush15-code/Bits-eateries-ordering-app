@@ -123,7 +123,7 @@ const handleFinalPayment = async () => {
   // mc=0000: Generic Merchant Code
   // mode=02: Merchant Mode (Intent)
   // purpose=00: Standard payment
-  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}&mc=0000&mode=02&purpose=00`;
+  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}&mc=5411&mode=02&purpose=00&tr=ORDER${Date.now()}`;
   
   if (isIOS) {
     setDeviceType('ios');
