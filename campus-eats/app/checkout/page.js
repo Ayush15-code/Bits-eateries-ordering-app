@@ -123,7 +123,9 @@ const handleFinalPayment = async () => {
   // mc=0000: Generic Merchant Code
   // mode=02: Merchant Mode (Intent)
   // purpose=00: Standard payment
-  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}&mc=5411&mode=02&purpose=00&tr=ORDER${Date.now()}`;
+  const transactionRef = `ORDER${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=Order${verificationCode}&mc=5499&mode=02&purpose=00&tr=${transactionRef}`
   
   if (isIOS) {
     setDeviceType('ios');
@@ -135,7 +137,16 @@ const handleFinalPayment = async () => {
     });
   } else {
     setDeviceType('android');
-    setGeneratedUpiLink(`upi://pay?${baseParams}`);
+  
+  // Android ke liye Generic Intent jo system se poochega kaunsa app kholna hai
+  // Ye browser restrictions ko bypass karta hai
+  const androidIntent = `intent://pay?${baseParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;S.browser_fallback_url=https://play.google.com/store/apps/details?id=com.google.android.apps.nbu.paisa.user;end`;
+  
+  // Agar aap sirf GPay kholna chahte hain toh package 'com.google.android.apps.nbu.paisa.user' sahi hai
+  // Agar generic UPI chooser chahiye toh niche wala use karein:
+  const genericIntent = `upi://pay?${baseParams}`;
+  
+  setGeneratedUpiLink(genericIntent);
   }
 
   setShowPaymentOptions(true);
