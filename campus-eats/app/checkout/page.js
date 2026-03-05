@@ -108,10 +108,9 @@ export default function Checkout() {
     setCart(cart.filter((_, i) => i !== index));
   };
 
-  const handleFinalPayment = async () => {
+const handleFinalPayment = async () => {
   if (cart.length === 0) return;
 
-  // iOS Detection: Navigator platform ko replace kiya safer regex se
   const userAgent = window.navigator.userAgent || window.navigator.vendor || window.opera;
   const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
                 (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
@@ -120,10 +119,12 @@ export default function Checkout() {
   const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank"; 
   const merchantName = shop?.name || "CampusEats";
 
-  // Links ko transaction se pehle prepare kar lo taaki state foran set ho jaye
-  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
+  // --- CRITICAL FIX: Added mc, mode, and purpose ---
+  // mc=0000: Generic Merchant Code
+  // mode=02: Merchant Mode (Intent)
+  // purpose=00: Standard payment
+  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}&mc=0000&mode=02&purpose=00`;
   
-  // States update karein transaction se PEHLE taaki UI crash na ho
   if (isIOS) {
     setDeviceType('ios');
     setGeneratedUpiLinks({
@@ -137,7 +138,6 @@ export default function Checkout() {
     setGeneratedUpiLink(`upi://pay?${baseParams}`);
   }
 
-  // Ab Modal kholo
   setShowPaymentOptions(true);
   setIsUploading(true);
 
