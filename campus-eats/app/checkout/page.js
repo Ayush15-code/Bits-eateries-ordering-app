@@ -108,9 +108,10 @@ export default function Checkout() {
     setCart(cart.filter((_, i) => i !== index));
   };
 
-const handleFinalPayment = async () => {
+  const handleFinalPayment = async () => {
   if (cart.length === 0) return;
 
+  // iOS Detection: Navigator platform ko replace kiya safer regex se
   const userAgent = window.navigator.userAgent || window.navigator.vendor || window.opera;
   const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
                 (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
@@ -119,14 +120,10 @@ const handleFinalPayment = async () => {
   const merchantUpi = shop?.upiId || "ayush12123a@okhdfcbank"; 
   const merchantName = shop?.name || "CampusEats";
 
-  // --- CRITICAL FIX: Added mc, mode, and purpose ---
-  // mc=0000: Generic Merchant Code
-  // mode=02: Merchant Mode (Intent)
-  // purpose=00: Standard payment
-  const transactionRef = `ORDER${Date.now()}${Math.floor(Math.random() * 1000)}`;
-
-  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=Order${verificationCode}&mc=5499&mode=02&purpose=00&tr=${transactionRef}`
+  // Links ko transaction se pehle prepare kar lo taaki state foran set ho jaye
+  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
   
+  // States update karein transaction se PEHLE taaki UI crash na ho
   if (isIOS) {
     setDeviceType('ios');
     setGeneratedUpiLinks({
@@ -137,18 +134,10 @@ const handleFinalPayment = async () => {
     });
   } else {
     setDeviceType('android');
-  
-  // Android ke liye Generic Intent jo system se poochega kaunsa app kholna hai
-  // Ye browser restrictions ko bypass karta hai
-  const androidIntent = `intent://pay?${baseParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;S.browser_fallback_url=https://play.google.com/store/apps/details?id=com.google.android.apps.nbu.paisa.user;end`;
-  
-  // Agar aap sirf GPay kholna chahte hain toh package 'com.google.android.apps.nbu.paisa.user' sahi hai
-  // Agar generic UPI chooser chahiye toh niche wala use karein:
-  const genericIntent = `upi://pay?${baseParams}`;
-  
-  setGeneratedUpiLink(genericIntent);
+    setGeneratedUpiLink(`upi://pay?${baseParams}`);
   }
 
+  // Ab Modal kholo
   setShowPaymentOptions(true);
   setIsUploading(true);
 
