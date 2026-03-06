@@ -108,7 +108,7 @@ export default function Checkout() {
     setCart(cart.filter((_, i) => i !== index));
   };
 
-  const handleFinalPayment = async () => {
+const handleFinalPayment = async () => {
   if (cart.length === 0) return;
 
   // iOS Detection: Navigator platform ko replace kiya safer regex se
