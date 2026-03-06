@@ -121,7 +121,8 @@ export default function Checkout() {
   const merchantName = shop?.name || "CampusEats";
 
   // Links ko transaction se pehle prepare kar lo taaki state foran set ho jaye
-  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=CE-${verificationCode}`;
+  const transactionRef = `TR${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const baseParams = `pa=${merchantUpi}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=Order${verificationCode}&mc=5499&mode=02&purpose=00&tr=${transactionRef}`;
   
   // States update karein transaction se PEHLE taaki UI crash na ho
   if (isIOS) {
