@@ -184,19 +184,41 @@ export default function Checkout() {
   };
 
   const handleSubmitScreenshot = async () => {
-    if (!screenshotBase64 || !lastCreatedOrderId) return;
-    setIsUploading(true);
-    try {
-      await updateDoc(doc(db, "orders", lastCreatedOrderId), {
-        screenshotBase64: screenshotBase64,
-        status: "AWAITING_VERIFICATION",
-        submittedAt: serverTimestamp()
-      });
-      router.push(`/status/${lastCreatedOrderId}`);
-    } catch (error) {
-      alert("Upload failed.");
-    } finally { setIsUploading(false); }
-  };
+  if (!screenshotBase64 || !lastCreatedOrderId) return;
+  setIsUploading(true);
+  
+  try {
+    // 1. Firestore mein screenshot aur status update karein
+    await updateDoc(doc(db, "orders", lastCreatedOrderId), { 
+      screenshotBase64, 
+      status: "AWAITING_VERIFICATION", 
+      submittedAt: serverTimestamp() 
+    });
+
+    // 2. IMPORTANT: Active Order ID ko save karein taaki Home Screen par bar dikhe
+    // Ye line aapke home screen status bar ko trigger karegi
+    localStorage.setItem('active_order_id', lastCreatedOrderId);
+
+    // 3. Purana Cart aur Shop clear karein (Cleanup)
+    localStorage.removeItem('pending_cart');
+    localStorage.removeItem('pending_shop_id');
+
+    // 4. React State clear karein taaki UI turant update ho jaye
+    setCart([]);
+    setShopId('');
+    setTotal(0);
+    setShowPaymentOptions(false);
+
+    // 5. Status page par bhej dein
+    router.push(`/status/${lastCreatedOrderId}`);
+    
+  } catch (e) { 
+    console.error("Upload failed:", e);
+    alert("Upload failed. Please try again."); 
+  } finally { 
+    setIsUploading(false); 
+  }
+};
 
   if (!isHydrated) return null;
 
