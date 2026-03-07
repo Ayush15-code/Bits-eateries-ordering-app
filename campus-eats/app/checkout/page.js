@@ -222,6 +222,18 @@ export default function Checkout() {
       setIsUploading(false);
     }
   };
+  // After successful screenshot upload, before redirect:
+  const newOrder = {
+    id: lastCreatedOrderId,
+    orderId: lastNumericId,
+    items: cart,
+    total: total,
+    status: "AWAITING_VERIFICATION",
+    timestamp: Date.now(),
+    shopId: shopId
+  };
+  const prevHistory = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
+  localStorage.setItem('order_history_v2', JSON.stringify([newOrder, ...prevHistory]));
 
   if (!isHydrated) return null;
 

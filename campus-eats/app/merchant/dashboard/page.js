@@ -246,7 +246,7 @@ export default function MerchantDash() {
             {orders.length === 0 ? (
               <div className="text-center py-20 opacity-40"><UtensilsCrossed className="mx-auto mb-4" size={48} /><p className="font-bold text-[10px] uppercase">No Active Orders</p></div>
             ) : (
-              orders.map(o => (
+              [...orders].reverse().map(o => (
                 <div key={o.id} className="bg-white dark:bg-gray-900 p-5 rounded-3xl shadow-md border-l-8 border-orange-500">
                   <div className="flex justify-between items-start">
                     {/* Inside the Orders Tab map */}
