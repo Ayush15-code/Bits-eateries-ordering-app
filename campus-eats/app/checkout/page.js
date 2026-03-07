@@ -303,8 +303,8 @@ export default function Checkout() {
                       includeMargin={true}
                     />
                   </div>
-                  {/* Inside the Payment Modal, above the Share button */}
-                  <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border-2 border-dashed border-orange-200 dark:border-orange-900/40">
+                  
+                  {/* <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border-2 border-dashed border-orange-200 dark:border-orange-900/40">
                     <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest mb-1">Verification Note</p>
                     <div className="flex items-center justify-center gap-2">
                       <span className="text-2xl font-black tracking-tighter dark:text-white">CE-{currentVerificationCode}</span>
@@ -319,7 +319,7 @@ export default function Checkout() {
                       </button>
                     </div>
                     <p className="text-[8px] font-bold text-gray-400 uppercase mt-2">Merchant will match this code with their bank SMS</p>
-                  </div>
+                  </div> */}
                   <button
                     onClick={handleShareAndPay}
                     className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-orange-600/20"
