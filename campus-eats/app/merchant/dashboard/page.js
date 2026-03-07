@@ -39,7 +39,7 @@ export default function MerchantDash() {
   const audioRef = useRef(null);
   const [historyOrders, setHistoryOrders] = useState([]);
 
-  
+
 
   // Helper for grouping items
   const getGroupedItems = (items) => {
@@ -53,24 +53,24 @@ export default function MerchantDash() {
   };
 
   // Auth Effect
- // Auth Effect + Notification Permission Request
+  // Auth Effect + Notification Permission Request
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.push('/merchant/login');
       } else {
         setMerchantUid(user.uid);
-        
+
         //changesssss
         if ('serviceWorker' in navigator && 'Notification' in window) {
-        // Request Permission
-        Notification.requestPermission();
-        
-        // Register SW
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('SW Registered'))
-          .catch(err => console.log('SW Registration Failed', err));
-      }
+          // Request Permission
+          Notification.requestPermission();
+
+          // Register SW
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW Registered'))
+            .catch(err => console.log('SW Registration Failed', err));
+        }
 
         try {
           const userDoc = await fireGetDoc(fireDoc(db, "users", user.uid));
@@ -78,8 +78,8 @@ export default function MerchantDash() {
             setMerchantShopId(userDoc.data().shopId);
           }
           setLoading(false);
-        } catch (err) { 
-          setLoading(false); 
+        } catch (err) {
+          setLoading(false);
         }
       }
     });
@@ -100,40 +100,40 @@ export default function MerchantDash() {
       // Explicitly list only the statuses the merchant should see
       where("status", "in", ["AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED"])
     );
-    
+
     const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
-  // 1. Pehle orders ki list update karo taaki UI turant dikhe (Bina reload ke)
-  const updatedOrders = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-  setOrders(updatedOrders); // State update
+      // 1. Pehle orders ki list update karo taaki UI turant dikhe (Bina reload ke)
+      const updatedOrders = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      setOrders(updatedOrders); // State update
 
-  // 2. Sound aur Notification logic
-  snap.docChanges().forEach((change) => {
-    // Sirf tab trigger karo jab sach mein naya document ADD hua ho
-    if (change.type === "added") {
-      const orderData = change.doc.data();
-      const orderTime = orderData.createdAt?.toMillis() || Date.now();
-      const now = Date.now();
+      // 2. Sound aur Notification logic
+      snap.docChanges().forEach((change) => {
+        // Sirf tab trigger karo jab sach mein naya document ADD hua ho
+        if (change.type === "added") {
+          const orderData = change.doc.data();
+          const orderTime = orderData.createdAt?.toMillis() || Date.now();
+          const now = Date.now();
 
-      if (now - orderTime < 30000) {
-        // Sound Play
-        if (audioRef.current) {
-          audioRef.current.play().catch(e => console.log("Sound blocked"));
+          if (now - orderTime < 30000) {
+            // Sound Play
+            if (audioRef.current) {
+              audioRef.current.play().catch(e => console.log("Sound blocked"));
+            }
+
+            // SW Notification
+            if (navigator.serviceWorker.controller) {
+              navigator.serviceWorker.controller.postMessage({
+                type: 'NEW_ORDER',
+                title: 'Naya Order Aaya Hai! 🍔',
+                body: `Order ID: #${orderData.orderId || change.doc.id.slice(0, 5)}`
+              });
+            }
+          }
         }
-
-        // SW Notification
-        if (navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'NEW_ORDER',
-            title: 'Naya Order Aaya Hai! 🍔',
-            body: `Order ID: #${orderData.orderId || change.doc.id.slice(0, 5)}`
-          });
-        }
-      }
-    }
-  });
-}, (error) => {
-  console.error("Firestore Error:", error);
-});
+      });
+    }, (error) => {
+      console.error("Firestore Error:", error);
+    });
 
     // History (Last 2 Hours)
     const twoHoursAgo = new Date();
@@ -209,7 +209,7 @@ export default function MerchantDash() {
   if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-gray-950 font-black text-orange-600">LOADING...</div>;
 
   return (
-    <div 
+    <div
       className="max-w-md mx-auto bg-gray-100 dark:bg-gray-950 min-h-screen pb-20"
       onClick={() => {
         // Browser Autoplay Fix: Prime the audio on first interaction
@@ -217,7 +217,7 @@ export default function MerchantDash() {
           audioRef.current.play().then(() => {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }}
     >
@@ -261,9 +261,7 @@ export default function MerchantDash() {
                     <span className="text-[9px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-black uppercase">{o.status}</span>
                   </div>
 
-                  {/* Inside the Orders Tab map in MerchantDash */}
-                  {/* Inside the Orders Tab map in MerchantDash */}
-                  {/* Inside the Order Card */}
+                  
                   <div className="flex justify-between items-center bg-orange-50 dark:bg-orange-950/20 p-3 rounded-2xl mb-3 border border-orange-100 dark:border-orange-900/30">
                     <div>
                       <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Verification Code</p>
@@ -289,52 +287,52 @@ export default function MerchantDash() {
                     ))}
                   </div>
 
-                 <div className="space-y-2">
-  {o.status === "AWAITING_VERIFICATION" && (
-    <button 
-      onClick={() => setViewingScreenshot(o.screenshotBase64)} 
-      className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform"
-    >
-      View Payment Proof
-    </button>
-  )}
-  
-  <div className="flex gap-2">
-    {o.status === "AWAITING_VERIFICATION" ? (
-      <>
-        {/* Accept Button */}
-        <button 
-          onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })} 
-          className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
-        >
-          Accept Payment
-        </button>
+                  <div className="space-y-2">
+                    {o.status === "AWAITING_VERIFICATION" && (
+                      <button
+                        onClick={() => setViewingScreenshot(o.screenshotBase64)}
+                        className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform"
+                      >
+                        View Payment Proof
+                      </button>
+                    )}
 
-        {/* Highlighted Fix: New Reject Button */}
-        <button 
-          onClick={() => {
-            if(window.confirm("Are you sure you want to reject this payment?")) {
-              fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "REJECTED" });
-            }
-          }} 
-          className="px-4 bg-red-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
-        >
-          Reject
-        </button>
-      </>
-    ) : (
-      /* Status logic for confirmed/other orders */
-      o.status !== "COLLECTED" && (
-        <button 
-          onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })} 
-          className="flex-1 bg-gray-900 dark:bg-white dark:text-black text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
-        >
-          Mark Collected
-        </button>
-      )
-    )}
-  </div>
-</div>
+                    <div className="flex gap-2">
+                      {o.status === "AWAITING_VERIFICATION" ? (
+                        <>
+                          {/* Accept Button */}
+                          <button
+                            onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })}
+                            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
+                          >
+                            Accept Payment
+                          </button>
+
+                          {/* Highlighted Fix: New Reject Button */}
+                          <button
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to reject this payment?")) {
+                                fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "REJECTED" });
+                              }
+                            }}
+                            className="px-4 bg-red-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      ) : (
+                        /* Status logic for confirmed/other orders */
+                        o.status !== "COLLECTED" && (
+                          <button
+                            onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })}
+                            className="flex-1 bg-gray-900 dark:bg-white dark:text-black text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
+                          >
+                            Mark Collected
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
 
 
                 </div>
@@ -343,72 +341,72 @@ export default function MerchantDash() {
           </div>
         )}
 
-       {/* --- Merchant History Tab Section --- */}
-{activeTab === 'history' && (
-  <div className="space-y-4 animate-in fade-in duration-500">
-    {historyOrders.length === 0 ? (
-      <div className="text-center py-20 opacity-20 italic">
-        <History size={48} className="mx-auto mb-4" />
-        <p className="text-[10px] font-black uppercase">No Recent History</p>
-      </div>
-    ) : (
-      historyOrders.map((o) => {
-        const isRejected = o.status === 'REJECTED';
-        return (
-          <div 
-            key={o.id} 
-            className={`bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border shadow-sm transition-all
+        {/* --- Merchant History Tab Section --- */}
+        {activeTab === 'history' && (
+          <div className="space-y-4 animate-in fade-in duration-500">
+            {historyOrders.length === 0 ? (
+              <div className="text-center py-20 opacity-20 italic">
+                <History size={48} className="mx-auto mb-4" />
+                <p className="text-[10px] font-black uppercase">No Recent History</p>
+              </div>
+            ) : (
+              historyOrders.map((o) => {
+                const isRejected = o.status === 'REJECTED';
+                return (
+                  <div
+                    key={o.id}
+                    className={`bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border shadow-sm transition-all
               ${isRejected ? 'border-red-500/20 bg-red-50/30 dark:bg-red-950/10' : 'border-gray-100 dark:border-gray-800'}
             `}
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                   <h3 className={`text-xl font-black italic ${isRejected ? 'text-red-500' : 'dark:text-white'}`}>
-                     #{o.orderId || o.id?.slice(-4).toUpperCase()}
-                   </h3>
-                   {isRejected && <span className="text-[10px] font-black text-red-500 uppercase tracking-tighter">FAILED</span>}
-                </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  {o.userName || "Unknown Student"}
-                </p>
-              </div>
-              
-              {/* Status Badge */}
-              <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest
-                ${isRejected 
-                  ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' 
-                  : 'bg-green-100 dark:bg-green-900/30 text-green-600'}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className={`text-xl font-black italic ${isRejected ? 'text-red-500' : 'dark:text-white'}`}>
+                            #{o.orderId || o.id?.slice(-4).toUpperCase()}
+                          </h3>
+                          {isRejected && <span className="text-[10px] font-black text-red-500 uppercase tracking-tighter">FAILED</span>}
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          {o.userName || "Unknown Student"}
+                        </p>
+                      </div>
+
+                      {/* Status Badge */}
+                      <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest
+                ${isRejected
+                          ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                          : 'bg-green-100 dark:bg-green-900/30 text-green-600'}
               `}>
-                {isRejected ? 'REJECTED' : 'COLLECTED'}
-              </span>
-            </div>
+                        {isRejected ? 'REJECTED' : 'COLLECTED'}
+                      </span>
+                    </div>
 
-            {/* Items List */}
-            <div className={`p-4 rounded-3xl mb-4 ${isRejected ? 'bg-red-500/5' : 'bg-gray-50 dark:bg-gray-800/40'}`}>
-              {o.items?.map((item, idx) => (
-                <p key={idx} className={`text-sm font-bold ${isRejected ? 'text-red-900/40 dark:text-red-400/40 line-through' : 'dark:text-gray-200'}`}>
-                  <span className={`${isRejected ? 'text-red-400' : 'text-orange-600'} mr-2`}>{item.quantity}x</span>
-                  {item.name} {item.category && item.category !== "General" ? item.category : ""}
-                </p>
-              ))}
-            </div>
+                    {/* Items List */}
+                    <div className={`p-4 rounded-3xl mb-4 ${isRejected ? 'bg-red-500/5' : 'bg-gray-50 dark:bg-gray-800/40'}`}>
+                      {o.items?.map((item, idx) => (
+                        <p key={idx} className={`text-sm font-bold ${isRejected ? 'text-red-900/40 dark:text-red-400/40 line-through' : 'dark:text-gray-200'}`}>
+                          <span className={`${isRejected ? 'text-red-400' : 'text-orange-600'} mr-2`}>{item.quantity}x</span>
+                          {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                        </p>
+                      ))}
+                    </div>
 
-            {/* Timestamps */}
-            <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400 px-1">
-              <span className="flex items-center gap-1"><Clock size={10}/> {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              {isRejected ? (
-                <span className="text-red-500">PAYMENT REJECTED</span>
-              ) : (
-                <span className="text-green-600 italic font-black">PICKED: {new Date(o.collectedAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              )}
-            </div>
+                    {/* Timestamps */}
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400 px-1">
+                      <span className="flex items-center gap-1"><Clock size={10} /> {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {isRejected ? (
+                        <span className="text-red-500">PAYMENT REJECTED</span>
+                      ) : (
+                        <span className="text-green-600 italic font-black">PICKED: {new Date(o.collectedAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
-        );
-      })
-    )}
-  </div>
-)}
+        )}
         {/* --- MANAGE TAB --- */}
         {activeTab === 'manage' && (
           <div className="space-y-6">

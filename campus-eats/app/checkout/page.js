@@ -10,6 +10,7 @@ import { QRCodeCanvas } from 'qrcode.react'; // Changed to Canvas for sharing
 import { ChevronLeft, Trash2, Camera, Loader2, Share2, Plus, Minus, ReceiptText } from 'lucide-react';
 
 export default function Checkout() {
+  const [currentVerificationCode, setCurrentVerificationCode] = useState('');
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
   const [shopId, setShopId] = useState('');
@@ -131,7 +132,9 @@ export default function Checkout() {
 
   const handleFinalPayment = async () => {
     if (cart.length === 0) return;
-
+    // Inside handleFinalPayment
+    // const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    // setCurrentVerificationCode(verificationCode); // Save it here
     setShowPaymentOptions(true);
     setIsUploading(true);
 
@@ -139,7 +142,7 @@ export default function Checkout() {
     const upiId = shop?.upiId?.trim() || "ayush12123a@okhdfcbank";
     const name = shop?.name || "CampusEats";
     const amt = Number(total).toFixed(2);
-    
+
     // Construct simple UPI link
     const link = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amt}&cu=INR&tn=${encodeURIComponent('Order ' + verificationCode)}`;
     setUpiLink(link);
@@ -184,41 +187,41 @@ export default function Checkout() {
   };
 
   const handleSubmitScreenshot = async () => {
-  if (!screenshotBase64 || !lastCreatedOrderId) return;
-  setIsUploading(true);
-  
-  try {
-    // 1. Firestore mein screenshot aur status update karein
-    await updateDoc(doc(db, "orders", lastCreatedOrderId), { 
-      screenshotBase64, 
-      status: "AWAITING_VERIFICATION", 
-      submittedAt: serverTimestamp() 
-    });
+    if (!screenshotBase64 || !lastCreatedOrderId) return;
+    setIsUploading(true);
 
-    // 2. IMPORTANT: Active Order ID ko save karein taaki Home Screen par bar dikhe
-    // Ye line aapke home screen status bar ko trigger karegi
-    localStorage.setItem('active_order_id', lastCreatedOrderId);
+    try {
+      // 1. Firestore mein screenshot aur status update karein
+      await updateDoc(doc(db, "orders", lastCreatedOrderId), {
+        screenshotBase64,
+        status: "AWAITING_VERIFICATION",
+        submittedAt: serverTimestamp()
+      });
 
-    // 3. Purana Cart aur Shop clear karein (Cleanup)
-    localStorage.removeItem('pending_cart');
-    localStorage.removeItem('pending_shop_id');
+      // 2. IMPORTANT: Active Order ID ko save karein taaki Home Screen par bar dikhe
+      // Ye line aapke home screen status bar ko trigger karegi
+      localStorage.setItem('active_order_id', lastCreatedOrderId);
 
-    // 4. React State clear karein taaki UI turant update ho jaye
-    setCart([]);
-    setShopId('');
-    setTotal(0);
-    setShowPaymentOptions(false);
+      // 3. Purana Cart aur Shop clear karein (Cleanup)
+      localStorage.removeItem('pending_cart');
+      localStorage.removeItem('pending_shop_id');
 
-    // 5. Status page par bhej dein
-    router.push(`/status/${lastCreatedOrderId}`);
-    
-  } catch (e) { 
-    console.error("Upload failed:", e);
-    alert("Upload failed. Please try again."); 
-  } finally { 
-    setIsUploading(false); 
-  }
-};
+      // 4. React State clear karein taaki UI turant update ho jaye
+      setCart([]);
+      setShopId('');
+      setTotal(0);
+      setShowPaymentOptions(false);
+
+      // 5. Status page par bhej dein
+      router.push(`/status/${lastCreatedOrderId}`);
+
+    } catch (e) {
+      console.error("Upload failed:", e);
+      alert("Upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   if (!isHydrated) return null;
 
@@ -292,16 +295,32 @@ export default function Checkout() {
                 {/* QR Section */}
                 <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-3xl border border-orange-100 dark:border-orange-900/30 flex flex-col items-center">
                   <div className="bg-white p-3 rounded-2xl shadow-sm mb-6">
-                    <QRCodeCanvas 
+                    <QRCodeCanvas
                       id="qr-canvas"
-                      value={upiLink || "upi://pay"} 
+                      value={upiLink || "upi://pay"}
                       size={180}
                       level="H"
                       includeMargin={true}
                     />
                   </div>
-
-                  <button 
+                  {/* Inside the Payment Modal, above the Share button */}
+                  <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border-2 border-dashed border-orange-200 dark:border-orange-900/40">
+                    <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest mb-1">Verification Note</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-2xl font-black tracking-tighter dark:text-white">CE-{currentVerificationCode}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`CE-${currentVerificationCode}`);
+                          alert("Code Copied!");
+                        }}
+                        className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm"
+                      >
+                        <ReceiptText size={14} className="text-orange-600" />
+                      </button>
+                    </div>
+                    <p className="text-[8px] font-bold text-gray-400 uppercase mt-2">Merchant will match this code with their bank SMS</p>
+                  </div>
+                  <button
                     onClick={handleShareAndPay}
                     className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-orange-600/20"
                   >
