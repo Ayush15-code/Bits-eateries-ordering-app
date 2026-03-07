@@ -144,7 +144,7 @@ export default function Checkout() {
     const amt = Number(total).toFixed(2);
 
     // Construct simple UPI link
-    const link = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amt}&cu=INR&tn=${encodeURIComponent('Order ' + verificationCode)}`;
+    const link = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amt}&cu=INR&tn=${encodeURIComponent('CE-' + verificationCode)}`;
     setUpiLink(link);
 
     try {
@@ -303,7 +303,7 @@ export default function Checkout() {
                       includeMargin={true}
                     />
                   </div>
-                  
+
                   {/* <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border-2 border-dashed border-orange-200 dark:border-orange-900/40">
                     <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest mb-1">Verification Note</p>
                     <div className="flex items-center justify-center gap-2">
