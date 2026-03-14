@@ -23,7 +23,7 @@ const db = getFirestore(app);
 const storage = getStorage(app); // Initialize Storage properly here
 
 if (typeof window !== "undefined") {
-  enableIndexedDbPersistence(db).catch((err) => {
+  enableIndexedDbPersistence(db, { synchronizeTabs: true }).catch((err) => {
     if (err.code == 'failed-precondition') {
       console.log("Multiple tabs open, persistence can only be enabled in one tab at a time.");
     } else if (err.code == 'unimplemented') {

@@ -50,8 +50,10 @@ export default function EateriesList() {
       // Optimization: Sirf 30 min se kam purane orders check karo
       const isRecent = !latest.timestamp || (Date.now() - latest.timestamp < 30 * 60 * 1000);
 
-      if (latest.status !== 'COLLECTED' && isRecent) {
-        unsubActiveOrder = onSnapshot(doc(db, "orders", latest.id), (snap) => {
+      // Use docId for Firestore lookup (fallback to id for legacy)
+      const docId = latest.docId || latest.id;
+      if (latest.status !== 'COLLECTED' && isRecent && docId) {
+        unsubActiveOrder = onSnapshot(doc(db, "orders", docId), (snap) => {
           if (snap.exists()) {
             const data = snap.data();
             if (data.status === 'COLLECTED') {
@@ -61,7 +63,7 @@ export default function EateriesList() {
               updated[0].status = 'COLLECTED';
               localStorage.setItem('order_history_v2', JSON.stringify(updated));
             } else {
-              setActiveOrder({ id: snap.id, ...data });
+              setActiveOrder({ docId: snap.id, ...data });
             }
           }
         });
@@ -117,13 +119,10 @@ export default function EateriesList() {
 <div className="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar">
   {orderHistory.length > 0 ? [...orderHistory].map((order, idx) => {
     const isObject = typeof order === 'object' && order !== null;
-    const orderId = isObject ? order.id : order;
+    const orderId = isObject ? (order.docId || order.id) : order;
     const displayNum = isObject && (order.orderId || order.orderNumber) ? (order.orderId || order.orderNumber) : (orderHistory.length - idx);
     const orderTotal = isObject ? (order.total || order.totalPrice) : null;
-    
-    // items array nikalne ke liye backup check
     const orderItems = isObject ? (order.items || []) : [];
-
     return (
       <div 
         key={idx} 
@@ -131,7 +130,7 @@ export default function EateriesList() {
             setIsSidebarOpen(false);
             router.push(`/status/${orderId}`);
         }} 
-        className="p-5 bg-gray-50 dark:bg-white/5 rounded-[2.2rem] flex flex-col gap-3 group cursor-pointer border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]"
+        className="p-5 bg-gray-50 dark:bg-white/5 rounded-4xl flex flex-col gap-3 group cursor-pointer border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]"
       >
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-3">
@@ -139,7 +138,7 @@ export default function EateriesList() {
               <ReceiptText size={18} />
             </div>
             <div>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1 text-orange-500">Order No.</p>
+              <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none mb-1">Order No.</p>
               <span className="text-base font-black dark:text-gray-200 tracking-tighter italic">#{displayNum}</span>
             </div>
           </div>
@@ -150,14 +149,12 @@ export default function EateriesList() {
             </div>
           )}
         </div>
-
-        {/* --- ITEMS DISPLAY (Corrected for "Plain Masala Dosa" format) --- */}
+        {/* --- ITEMS DISPLAY --- */}
         {orderItems.length > 0 && (
-          <div className="bg-white/40 dark:bg-black/20 p-3 rounded-2xl space-y-1">
+          <div className="bg-white/40 dark:bg.black/20 p-3 rounded-2xl space-y-1">
             {orderItems.map((item, iIdx) => (
               <p key={iIdx} className="text-[10px] font-bold dark:text-gray-300 flex items-center">
                 <span className="text-orange-600 mr-2">{item.quantity}x</span>
-                {/* Format: Name + Category (agar General nahi hai toh) */}
                 <span className="uppercase tracking-tight">
                   {item.name} {item.category && item.category !== "General" ? item.category : ""}
                 </span>
@@ -165,7 +162,6 @@ export default function EateriesList() {
             ))}
           </div>
         )}
-
         <div className="flex items-center justify-between mt-1 pt-3 border-t border-gray-100 dark:border-white/5">
           <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
             ID: {orderId?.slice(-4).toUpperCase()}
@@ -213,7 +209,7 @@ export default function EateriesList() {
       {/* --- HEADER --- */}
       <header className="mb-12">
         <div className="flex items-center justify-between gap-4">
-          <button onClick={() => setIsSidebarOpen(true)} className="w-12 h-12 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-700 dark:text-white active:scale-90 transition-all">
+          <button onClick={() => setIsSidebarOpen(true)} className="w-12 h-12 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-700 dark:text.white active:scale-90 transition-all">
             <MenuIcon size={24} strokeWidth={2.5} />
           </button>
           <div className="text-center flex-1">
@@ -257,7 +253,7 @@ export default function EateriesList() {
       {/* --- STATUS BAR (OPTIMIZED) --- */}
       {activeOrder && activeOrder.status !== 'COLLECTED' && activeOrder.status !== 'REJECTED' && (
   <div 
-    onClick={() => router.push(`/order-status/${activeOrder.id}`)}
+    onClick={() => router.push(`/order-status/${activeOrder.docId || activeOrder.id}`)}
     className="fixed bottom-24 left-6 right-6 bg-orange-600 p-4 rounded-[2rem] shadow-2xl flex items-center justify-between z-40 active:scale-95 transition-all cursor-pointer"
   >
     <div className="flex items-center gap-4">
@@ -266,7 +262,7 @@ export default function EateriesList() {
       </div>
       <div>
         <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">
-          Active Order • Token #{activeOrder.orderId || activeOrder.id?.slice(-3).toUpperCase()}
+          Active Order • Token #{activeOrder.orderId || (activeOrder.docId || activeOrder.id)?.slice(-3).toUpperCase()}
         </p>
         <p className="text-white font-black italic uppercase text-xs">
           Status: {activeOrder.status.replace('_', ' ')}
@@ -280,7 +276,7 @@ export default function EateriesList() {
       {/* --- CART BANNER (Existing) --- */}
       {cart.length > 0 && (
         <div className="fixed bottom-8 left-0 right-0 z-50 px-4 flex justify-center">
-          <div className="w-full max-w-md bg-black dark:bg-white text-white dark:text-black p-5 rounded-[2.5rem] shadow-2xl flex items-center justify-between border border-white/10">
+          <div className="w-full max-w-md bg-black dark:bg.white text-white dark:text.black p-5 rounded-[2.5rem] shadow-2xl flex items-center justify-between border border-white/10">
             <div className="flex flex-col pl-2">
               <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Pending Tray</span>
               <span className="font-black text-base italic">{cart.length} Items • ₹{cartTotal}</span>

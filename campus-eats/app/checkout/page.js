@@ -6,11 +6,10 @@ import {
   collection, doc, runTransaction, serverTimestamp, updateDoc, getDoc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { QRCodeCanvas } from 'qrcode.react'; // Changed to Canvas for sharing
-import { ChevronLeft, Trash2, Camera, Loader2, Share2, Plus, Minus, ReceiptText } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react'; 
+import { ChevronLeft, Trash2, Camera, Loader2, Share2, Plus, Minus } from 'lucide-react';
 
 export default function Checkout() {
-  const [currentVerificationCode, setCurrentVerificationCode] = useState('');
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
   const [shopId, setShopId] = useState('');
@@ -66,13 +65,11 @@ export default function Checkout() {
     localStorage.setItem('pending_cart', JSON.stringify(cart));
   }, [cart, isHydrated]);
 
-  // NATIVE SHARE LOGIC
   const handleShareAndPay = async () => {
     try {
       const canvas = document.getElementById('qr-canvas');
       if (!canvas) return;
 
-      // Convert Canvas to Blob
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       const file = new File([blob], 'payment_qr.png', { type: 'image/png' });
 
@@ -132,26 +129,16 @@ export default function Checkout() {
 
   const handleFinalPayment = async () => {
     if (cart.length === 0) return;
-    // Inside handleFinalPayment
-    // const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-    // setCurrentVerificationCode(verificationCode); // Save it here
     setShowPaymentOptions(true);
-    setIsUploading(true);
-
-    const verificationCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     const upiId = shop?.upiId?.trim() || "ayush12123a@okhdfcbank";
     const name = shop?.name || "CampusEats";
     const amt = Number(total).toFixed(2);
-
-    // Construct simple UPI link
-    const link = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amt}&cu=INR&tn=${encodeURIComponent('CE-' + verificationCode)}`;
+     const link = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amt}&cu=INR`;
     setUpiLink(link);
-
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const counterRef = doc(db, "internal", "order_counter");
       const ordersCol = collection(db, "orders");
-
       const newOrderData = await runTransaction(db, async (transaction) => {
         const counterSnap = await transaction.get(counterRef);
         let nextId = 1;
@@ -167,22 +154,18 @@ export default function Checkout() {
           userName: auth.currentUser?.displayName || "Student",
           items: cart,
           total: total,
-          verificationCode: verificationCode,
           status: "PENDING_SCREENSHOT",
           createdAt: serverTimestamp(),
           shopId: shopId || "default_shop"
         });
         return { docId: newOrderRef.id, numericId: nextId };
       });
-
       setLastCreatedOrderId(newOrderData.docId);
       setLastNumericId(newOrderData.numericId);
-      setIsUploading(false);
-
     } catch (e) {
       console.error(e);
-      setIsUploading(false);
       alert("Order failed.");
+      setShowPaymentOptions(false);
     }
   };
 
@@ -191,28 +174,36 @@ export default function Checkout() {
     setIsUploading(true);
 
     try {
-      // 1. Firestore mein screenshot aur status update karein
       await updateDoc(doc(db, "orders", lastCreatedOrderId), {
         screenshotBase64,
         status: "AWAITING_VERIFICATION",
         submittedAt: serverTimestamp()
       });
 
-      // 2. IMPORTANT: Active Order ID ko save karein taaki Home Screen par bar dikhe
-      // Ye line aapke home screen status bar ko trigger karegi
+      const newOrder = {
+        orderId: lastNumericId,
+        items: cart,
+        total: total,
+        status: "AWAITING_VERIFICATION",
+        timestamp: Date.now(),
+        shopId: shopId
+      };
+      // Save to order_history_v2 with timestamp for 24h expiry
+      const prevHistory = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
+      // Only keep orders from last 24h
+      const now = Date.now();
+      const filteredHistory = prevHistory.filter(o => now - (o.timestamp || 0) < 24 * 60 * 60 * 1000);
+      localStorage.setItem('order_history_v2', JSON.stringify([newOrder, ...filteredHistory]));
       localStorage.setItem('active_order_id', lastCreatedOrderId);
 
-      // 3. Purana Cart aur Shop clear karein (Cleanup)
       localStorage.removeItem('pending_cart');
       localStorage.removeItem('pending_shop_id');
-
-      // 4. React State clear karein taaki UI turant update ho jaye
+      
       setCart([]);
       setShopId('');
       setTotal(0);
       setShowPaymentOptions(false);
 
-      // 5. Status page par bhej dein
       router.push(`/status/${lastCreatedOrderId}`);
 
     } catch (e) {
@@ -222,24 +213,11 @@ export default function Checkout() {
       setIsUploading(false);
     }
   };
-  // After successful screenshot upload, before redirect:
-  const newOrder = {
-    id: lastCreatedOrderId,
-    orderId: lastNumericId,
-    items: cart,
-    total: total,
-    status: "AWAITING_VERIFICATION",
-    timestamp: Date.now(),
-    shopId: shopId
-  };
-  const prevHistory = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
-  localStorage.setItem('order_history_v2', JSON.stringify([newOrder, ...prevHistory]));
 
   if (!isHydrated) return null;
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-[#050505] min-h-screen text-gray-900 dark:text-white transition-colors">
-      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <button onClick={() => router.back()} className="p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 active:scale-90 transition-all shadow-sm">
           <ChevronLeft size={20} className="text-orange-600" />
@@ -248,7 +226,6 @@ export default function Checkout() {
         <div className="w-11"></div>
       </div>
 
-      {/* Cart Items */}
       <div className="space-y-4 mb-8">
         {cart.map((item, index) => (
           <div key={index} className="bg-white dark:bg-white/5 p-5 rounded-[2rem] border border-gray-100 dark:border-white/10 flex flex-col gap-4 shadow-sm">
@@ -278,7 +255,6 @@ export default function Checkout() {
         ))}
       </div>
 
-      {/* Checkout Footer */}
       {cart.length > 0 && (
         <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
           <div className="flex justify-between items-center">
@@ -291,78 +267,33 @@ export default function Checkout() {
         </div>
       )}
 
-      {/* Payment Modal */}
       {showPaymentOptions && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/98 backdrop-blur-xl z-50 flex items-center justify-center p-6 text-center">
           <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-black mb-6 uppercase italic tracking-tighter">Pay & Upload</h2>
 
-            {isUploading && !lastCreatedOrderId ? (
-              <div className="flex flex-col items-center justify-center py-10 space-y-4">
-                <Loader2 className="animate-spin text-orange-600" size={40} />
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Generating QR...</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* QR Section */}
-                <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-3xl border border-orange-100 dark:border-orange-900/30 flex flex-col items-center">
-                  <div className="bg-white p-3 rounded-2xl shadow-sm mb-6">
-                    <QRCodeCanvas
-                      id="qr-canvas"
-                      value={upiLink || "upi://pay"}
-                      size={180}
-                      level="H"
-                      includeMargin={true}
-                    />
-                  </div>
-
-                  {/* <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border-2 border-dashed border-orange-200 dark:border-orange-900/40">
-                    <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest mb-1">Verification Note</p>
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-2xl font-black tracking-tighter dark:text-white">CE-{currentVerificationCode}</span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(`CE-${currentVerificationCode}`);
-                          alert("Code Copied!");
-                        }}
-                        className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm"
-                      >
-                        <ReceiptText size={14} className="text-orange-600" />
-                      </button>
-                    </div>
-                    <p className="text-[8px] font-bold text-gray-400 uppercase mt-2">Merchant will match this code with their bank SMS</p>
-                  </div> */}
-                  <button
-                    onClick={handleShareAndPay}
-                    className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-orange-600/20"
-                  >
-                    <Share2 size={16} />
-                    Share QR & Pay
-                  </button>
+            <div className="space-y-6">
+              <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-3xl border border-orange-100 dark:border-orange-900/30 flex flex-col items-center">
+                <div className="bg-white p-3 rounded-2xl shadow-sm mb-6">
+                  <QRCodeCanvas id="qr-canvas" value={upiLink || "upi://pay"} size={180} level="H" includeMargin={true} />
                 </div>
-
-                {/* Screenshot Upload */}
-                <div className="space-y-3">
-                  <p className="text-[9px] font-black text-gray-400 uppercase text-center tracking-[0.2em]">Upload Screenshot</p>
-                  <label className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] cursor-pointer overflow-hidden bg-gray-50 dark:bg-black/20">
-                    {screenshotBase64 ? (
-                      <img src={screenshotBase64} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <Camera className="text-gray-300" size={24} />
-                    )}
-                    <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                  </label>
-                </div>
-
-                <button
-                  onClick={handleSubmitScreenshot}
-                  disabled={!screenshotBase64 || isUploading}
-                  className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 transition-all"
-                >
-                  {isUploading ? <Loader2 className="animate-spin" size={16} /> : "Verify Payment"}
+                <button onClick={handleShareAndPay} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-orange-600/20">
+                  <Share2 size={16} /> Share QR & Pay
                 </button>
               </div>
-            )}
+
+              <div className="space-y-3">
+                <p className="text-[9px] font-black text-gray-400 uppercase text-center tracking-[0.2em]">Upload Screenshot</p>
+                <label className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] cursor-pointer overflow-hidden bg-gray-50 dark:bg-black/20">
+                  {screenshotBase64 ? <img src={screenshotBase64} alt="Preview" className="w-full h-full object-cover" /> : <Camera className="text-gray-300" size={24} />}
+                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                </label>
+              </div>
+
+              <button onClick={handleSubmitScreenshot} disabled={!screenshotBase64 || isUploading} className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 transition-all">
+                {isUploading ? <Loader2 className="animate-spin" size={16} /> : "Verify Payment"}
+              </button>
+            </div>
             <button onClick={() => setShowPaymentOptions(false)} className="w-full mt-4 text-[10px] font-black uppercase text-gray-400 tracking-widest text-center">Cancel</button>
           </div>
         </div>
