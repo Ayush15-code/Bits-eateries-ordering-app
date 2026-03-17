@@ -24,7 +24,6 @@ export default function OrderHistory() {
 
   const fetchHistory = async () => {
     try {
-      // Trying both common history keys to be safe
       const historyRaw = localStorage.getItem('order_history_v2') || localStorage.getItem('order_history');
       let historyArr = [];
       if (historyRaw) {
@@ -45,8 +44,6 @@ export default function OrderHistory() {
       const orderDetails = await Promise.all(
         filtered.map(async (o) => {
           try {
-            // IMPORTANT: Fetch using the unique Firestore Document ID
-            // status/[id] expects the Firestore auto-generated string ID
             const targetId = o.id || o.docId;
             if (!targetId) return null;
             const docSnap = await getDoc(doc(db, "orders", targetId));
@@ -86,12 +83,12 @@ export default function OrderHistory() {
   if (!isHydrated) return null;
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-[#050505] min-h-screen text-white flex flex-col">
-      {/* Header */}
+    <div className="max-w-md mx-auto p-6 bg-[#050505] min-h-screen text-white flex flex-col font-sans">
+      {/* Header Section */}
       <div className="flex justify-between items-center mb-10 pt-4">
         <div className="flex flex-col">
           <h1 className="text-3xl font-black italic uppercase tracking-tighter text-orange-600">Activity</h1>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">History</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 leading-none mt-1">History</p>
         </div>
         <div className="flex gap-2">
           <button onClick={clearHistory} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all">
@@ -106,7 +103,7 @@ export default function OrderHistory() {
       {/* Orders List */}
       <div className="flex-1 space-y-6">
         {loading ? (
-          [1, 2, 3].map(i => <div key={i} className="h-40 w-full bg-white/5 animate-pulse rounded-[2.5rem]" />)
+          [1, 2].map(i => <div key={i} className="h-44 w-full bg-white/5 animate-pulse rounded-[2.5rem]" />)
         ) : orders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 opacity-20">
             <History size={64} className="mb-4" />
@@ -116,45 +113,47 @@ export default function OrderHistory() {
           orders.map((order) => (
             <div 
               key={order.docId} 
-              className="bg-[#111111] border border-white/5 p-6 rounded-[2.5rem] relative overflow-hidden"
+              className="bg-[#111111] border border-white/5 p-6 rounded-[2.5rem] relative"
             >
+              {/* Card Top: Order No & Total */}
               <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center">
                     <History size={20} className="text-orange-500" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Order No.</p>
-                    <p className="text-2xl font-black text-white italic">#{order.orderId || "..."}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Order No.</p>
+                    <p className="text-2xl font-black text-white italic leading-none">#{order.orderId || "..."}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Total</p>
-                  <p className="text-2xl font-black italic text-orange-500">₹{order.total}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Total</p>
+                  <p className="text-2xl font-black italic text-orange-500 leading-none">₹{order.total}</p>
                 </div>
               </div>
 
               {/* Items Card */}
-              <div className="bg-white/5 rounded-[1.5rem] p-4 mb-6">
+              <div className="bg-white/5 rounded-[1.5rem] p-4 mb-6 border border-white/5">
                 {order.items?.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2 mb-1">
-                    <span className="text-orange-500 font-black italic text-sm">{item.quantity}x</span>
-                    <p className="text-xs font-bold text-white/80 uppercase italic">{item.name}</p>
+                  <div key={idx} className="flex items-center gap-2 mb-1 last:mb-0">
+                    <span className="text-orange-500 font-black italic text-[11px]">{item.quantity}x</span>
+                    <p className="text-[11px] font-bold text-white/80 uppercase italic leading-tight">{item.name}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Action Footer */}
+              {/* Card Footer: Status & Track Link ONLY */}
               <div className="flex justify-between items-center pt-4 border-t border-white/5">
                 <div className="flex items-center gap-2">
-                   <div className={`w-2 h-2 rounded-full animate-pulse ${order.status === 'READY' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                   <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${order.status === 'READY' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                    <span className={`text-[10px] font-black uppercase tracking-widest ${order.status === 'READY' ? 'text-green-500' : 'text-orange-500'}`}>
                      {order.status?.replace('_', ' ') || 'PENDING'}
                    </span>
                 </div>
+                
                 <button 
                   onClick={() => router.push(`/status/${order.docId}`)}
-                  className="flex items-center gap-1 text-orange-500 font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all"
+                  className="flex items-center gap-1 text-orange-500 font-black uppercase text-[10px] tracking-widest active:translate-x-1 transition-all"
                 >
                   Track <ChevronRight size={14} />
                 </button>
@@ -164,13 +163,13 @@ export default function OrderHistory() {
         )}
       </div>
 
-      {/* Logout Button (From Screenshot) */}
+      {/* Logout Button */}
       <button 
         onClick={handleLogout}
-        className="mt-10 mb-6 w-full bg-red-500/10 border border-red-500/20 p-6 rounded-[2.5rem] flex items-center justify-between active:scale-95 transition-all"
+        className="mt-10 mb-6 w-full bg-red-500/10 border border-red-500/20 p-6 rounded-[2.5rem] flex items-center justify-between active:scale-95 transition-all group"
       >
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/40">
+          <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-600/20 group-hover:scale-105 transition-transform">
             <LogOut size={20} className="text-white" />
           </div>
           <span className="font-black uppercase italic tracking-widest text-red-500">Logout</span>
@@ -178,7 +177,7 @@ export default function OrderHistory() {
         <ChevronRight size={20} className="text-red-500/40" />
       </button>
 
-      <div className="text-center opacity-20 pb-4">
+      <div className="text-center opacity-10 pb-4">
         <p className="text-[10px] font-black uppercase tracking-[0.3em]">CampusEats • Bits Goa</p>
       </div>
     </div>

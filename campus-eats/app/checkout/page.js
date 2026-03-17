@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { QRCodeCanvas } from 'qrcode.react'; 
-import { ChevronLeft, Trash2, Camera, Loader2, Share2, Plus, Minus } from 'lucide-react';
+import { ChevronLeft, Trash2, Camera, Loader2, Share2, Plus, Minus, X } from 'lucide-react';
 
 export default function Checkout() {
   const [cart, setCart] = useState([]);
@@ -65,28 +65,33 @@ export default function Checkout() {
     localStorage.setItem('pending_cart', JSON.stringify(cart));
   }, [cart, isHydrated]);
 
+  // NEW: Clear Entire Cart Function
+  const clearCart = () => {
+    if (window.confirm("Clear all items from your tray?")) {
+      setCart([]);
+      localStorage.removeItem('pending_cart');
+      localStorage.removeItem('pending_shop_id');
+      router.push('/eatery'); // Redirect back to shop list/menu
+    }
+  };
+
   const handleShareAndPay = async () => {
     try {
       const canvas = document.getElementById('qr-canvas');
       if (!canvas) return;
-
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       const file = new File([blob], 'payment_qr.png', { type: 'image/png' });
-
       const shareData = {
         title: 'Pay for Order',
-        text: `Scan/Upload this QR to pay ₹${total} to ${shop?.name}. (Order #${lastNumericId})`,
+        text: `Pay ₹${total} to ${shop?.name}. (Order #${lastNumericId})`,
         files: [file],
       };
-
       if (navigator.canShare && navigator.canShare(shareData)) {
         await navigator.share(shareData);
       } else {
-        alert("Sharing not supported. Please take a screenshot of the QR code.");
+        alert("Sharing not supported. Please take a screenshot.");
       }
-    } catch (err) {
-      console.error("Share failed:", err);
-    }
+    } catch (err) { console.error("Share failed:", err); }
   };
 
   const handleFileChange = (e) => {
@@ -130,15 +135,19 @@ export default function Checkout() {
   const handleFinalPayment = async () => {
     if (cart.length === 0) return;
     setShowPaymentOptions(true);
+
     const upiId = shop?.upiId?.trim() || "ayush12123a@okhdfcbank";
     const name = shop?.name || "CampusEats";
     const amt = Number(total).toFixed(2);
-     const link = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amt}&cu=INR`;
+
+    const link = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amt}&cu=INR`;
     setUpiLink(link);
+
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const counterRef = doc(db, "internal", "order_counter");
       const ordersCol = collection(db, "orders");
+
       const newOrderData = await runTransaction(db, async (transaction) => {
         const counterSnap = await transaction.get(counterRef);
         let nextId = 1;
@@ -160,8 +169,10 @@ export default function Checkout() {
         });
         return { docId: newOrderRef.id, numericId: nextId };
       });
+
       setLastCreatedOrderId(newOrderData.docId);
       setLastNumericId(newOrderData.numericId);
+
     } catch (e) {
       console.error(e);
       alert("Order failed.");
@@ -172,7 +183,6 @@ export default function Checkout() {
   const handleSubmitScreenshot = async () => {
     if (!screenshotBase64 || !lastCreatedOrderId) return;
     setIsUploading(true);
-
     try {
       await updateDoc(doc(db, "orders", lastCreatedOrderId), {
         screenshotBase64,
@@ -181,6 +191,7 @@ export default function Checkout() {
       });
 
       const newOrder = {
+        id: lastCreatedOrderId,
         orderId: lastNumericId,
         items: cart,
         total: total,
@@ -188,12 +199,9 @@ export default function Checkout() {
         timestamp: Date.now(),
         shopId: shopId
       };
-      // Save to order_history_v2 with timestamp for 24h expiry
+      
       const prevHistory = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
-      // Only keep orders from last 24h
-      const now = Date.now();
-      const filteredHistory = prevHistory.filter(o => now - (o.timestamp || 0) < 24 * 60 * 60 * 1000);
-      localStorage.setItem('order_history_v2', JSON.stringify([newOrder, ...filteredHistory]));
+      localStorage.setItem('order_history_v2', JSON.stringify([newOrder, ...prevHistory]));
       localStorage.setItem('active_order_id', lastCreatedOrderId);
 
       localStorage.removeItem('pending_cart');
@@ -203,56 +211,75 @@ export default function Checkout() {
       setShopId('');
       setTotal(0);
       setShowPaymentOptions(false);
-
       router.push(`/status/${lastCreatedOrderId}`);
-
     } catch (e) {
-      console.error("Upload failed:", e);
-      alert("Upload failed. Please try again.");
-    } finally {
-      setIsUploading(false);
-    }
+      alert("Upload failed.");
+    } finally { setIsUploading(false); }
   };
 
   if (!isHydrated) return null;
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-[#050505] min-h-screen text-gray-900 dark:text-white transition-colors">
+      
+      {/* Header with Back Button and NEW CLEAR CROSS */}
       <div className="flex justify-between items-center mb-8">
-        <button onClick={() => router.back()} className="p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 active:scale-90 transition-all shadow-sm">
-          <ChevronLeft size={20} className="text-orange-600" />
+        <button onClick={() => router.back()} className="p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 active:scale-90 transition-all shadow-sm text-orange-600">
+          <ChevronLeft size={20} />
         </button>
+        
         <h1 className="text-xl font-black uppercase italic tracking-tighter">Review Order</h1>
-        <div className="w-11"></div>
+        
+        {/* CLEAR CROSS BUTTON */}
+        <button 
+          onClick={clearCart} 
+          className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20 active:scale-90 transition-all shadow-sm text-red-500"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       <div className="space-y-4 mb-8">
-        {cart.map((item, index) => (
-          <div key={index} className="bg-white dark:bg-white/5 p-5 rounded-[2rem] border border-gray-100 dark:border-white/10 flex flex-col gap-4 shadow-sm">
-            <div className="flex justify-between items-start">
-              <div className="flex gap-4">
-                <div className="bg-orange-600 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm italic shadow-lg shadow-orange-600/20 text-white">
-                  {item.quantity || 1}x
+        {cart.map((item, index) => {
+          const itemName = (item.name || item.itemName || "").split('(')[0].trim();
+          const categoryName = (item.category || "").trim();
+          let cleanDisplayName = itemName;
+          if (categoryName && itemName.toUpperCase() !== categoryName.toUpperCase()) {
+            cleanDisplayName = `${itemName} ${categoryName}`;
+          }
+
+          return (
+            <div key={index} className="bg-white dark:bg-white/5 p-5 rounded-[2rem] border border-gray-100 dark:border-white/10 flex flex-col gap-4 shadow-sm">
+              <div className="flex justify-between items-start">
+                <div className="flex gap-4">
+                  <div className="bg-orange-600 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm italic text-white">
+                    {item.quantity || 1}x
+                  </div>
+                  <div>
+                    <p className="font-black text-sm uppercase italic tracking-tight">
+                      {cleanDisplayName}
+                    </p>
+                    <p className="text-orange-500 font-black text-[10px] mt-0.5">₹{item.price || item.Price}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-black text-sm uppercase italic tracking-tight">{item.name || item.itemName}</p>
-                  <p className="text-orange-500 font-black text-[10px] mt-0.5">₹{item.price || item.Price}</p>
+                <button onClick={() => removeItem(index)} className="text-gray-300 dark:text-white/20 hover:text-red-500">
+                  <Trash2 size={18} />
+                </button>
+              </div>
+              
+              <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-white/5">
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-black/40 p-1 rounded-xl border border-gray-200 dark:border-white/5">
+                  <button onClick={() => updateQty(index, -1)} className="p-2"><Minus size={14} /></button>
+                  <span className="w-8 text-center font-black text-xs italic">{item.quantity || 1}</span>
+                  <button onClick={() => updateQty(index, 1)} className="p-2 text-orange-500"><Plus size={14} /></button>
                 </div>
+                <p className="font-black text-sm italic">
+                  ₹{(Number(item.price || item.Price || 0)) * (item.quantity || 1)}
+                </p>
               </div>
-              <button onClick={() => removeItem(index)} className="text-gray-300 dark:text-white/20 hover:text-red-500 p-1">
-                <Trash2 size={18} />
-              </button>
             </div>
-            <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-white/5">
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-black/40 p-1 rounded-xl border border-gray-200 dark:border-white/5">
-                <button onClick={() => updateQty(index, -1)} className="p-2 text-gray-400"><Minus size={14} /></button>
-                <span className="w-8 text-center font-black text-xs italic">{item.quantity || 1}</span>
-                <button onClick={() => updateQty(index, 1)} className="p-2 text-orange-500"><Plus size={14} /></button>
-              </div>
-              <p className="font-black text-sm italic">₹{(Number(item.price || item.Price || 0)) * (item.quantity || 1)}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {cart.length > 0 && (
@@ -267,21 +294,20 @@ export default function Checkout() {
         </div>
       )}
 
+      {/* Payment Modals remain same... */}
       {showPaymentOptions && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/98 backdrop-blur-xl z-50 flex items-center justify-center p-6 text-center">
           <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-black mb-6 uppercase italic tracking-tighter">Pay & Upload</h2>
-
             <div className="space-y-6">
               <div className="bg-orange-50 dark:bg-orange-950/20 p-5 rounded-3xl border border-orange-100 dark:border-orange-900/30 flex flex-col items-center">
                 <div className="bg-white p-3 rounded-2xl shadow-sm mb-6">
                   <QRCodeCanvas id="qr-canvas" value={upiLink || "upi://pay"} size={180} level="H" includeMargin={true} />
                 </div>
-                <button onClick={handleShareAndPay} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-orange-600/20">
+                <button onClick={handleShareAndPay} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-orange-600/20">
                   <Share2 size={16} /> Share QR & Pay
                 </button>
               </div>
-
               <div className="space-y-3">
                 <p className="text-[9px] font-black text-gray-400 uppercase text-center tracking-[0.2em]">Upload Screenshot</p>
                 <label className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] cursor-pointer overflow-hidden bg-gray-50 dark:bg-black/20">
@@ -289,7 +315,6 @@ export default function Checkout() {
                   <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                 </label>
               </div>
-
               <button onClick={handleSubmitScreenshot} disabled={!screenshotBase64 || isUploading} className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 disabled:opacity-20 active:scale-95 transition-all">
                 {isUploading ? <Loader2 className="animate-spin" size={16} /> : "Verify Payment"}
               </button>

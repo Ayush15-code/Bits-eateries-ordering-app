@@ -39,8 +39,6 @@ export default function MerchantDash() {
   const audioRef = useRef(null);
   const [historyOrders, setHistoryOrders] = useState([]);
 
-
-
   // Helper for grouping items
   const getGroupedItems = (items) => {
     return (items || []).reduce((acc, item) => {
@@ -52,7 +50,6 @@ export default function MerchantDash() {
     }, {});
   };
 
-  // Auth Effect
   // Auth Effect + Notification Permission Request
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -61,12 +58,8 @@ export default function MerchantDash() {
       } else {
         setMerchantUid(user.uid);
 
-        //changesssss
         if ('serviceWorker' in navigator && 'Notification' in window) {
-          // Request Permission
           Notification.requestPermission();
-
-          // Register SW
           navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('SW Registered'))
             .catch(err => console.log('SW Registration Failed', err));
@@ -92,35 +85,27 @@ export default function MerchantDash() {
   useEffect(() => {
     if (!merchantShopId || !merchantUid) return;
 
-    // Active Orders
-    // Inside MerchantDash.js
     const qOrders = query(
       collection(db, "orders"),
       where("shopId", "==", merchantShopId),
-      // Explicitly list only the statuses the merchant should see
       where("status", "in", ["AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED"])
     );
 
     const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
-      // 1. Pehle orders ki list update karo taaki UI turant dikhe (Bina reload ke)
       const updatedOrders = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-      setOrders(updatedOrders); // State update
+      setOrders(updatedOrders); 
 
-      // 2. Sound aur Notification logic
       snap.docChanges().forEach((change) => {
-        // Sirf tab trigger karo jab sach mein naya document ADD hua ho
         if (change.type === "added") {
           const orderData = change.doc.data();
           const orderTime = orderData.createdAt?.toMillis() || Date.now();
           const now = Date.now();
 
           if (now - orderTime < 30000) {
-            // Sound Play
             if (audioRef.current) {
               audioRef.current.play().catch(e => console.log("Sound blocked"));
             }
 
-            // SW Notification
             if (navigator.serviceWorker.controller) {
               navigator.serviceWorker.controller.postMessage({
                 type: 'NEW_ORDER',
@@ -135,7 +120,6 @@ export default function MerchantDash() {
       console.error("Firestore Error:", error);
     });
 
-    // History (Last 2 Hours)
     const twoHoursAgo = new Date();
     twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
     const qHistory = query(
@@ -150,12 +134,10 @@ export default function MerchantDash() {
       setHistoryOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     });
 
-    // Shop Status
     const unsubShop = onSnapshot(fireDoc(db, "shops", merchantShopId), (snap) => {
       if (snap.exists()) setShopStatus(snap.data().isOpen);
     });
 
-    // Menu Logic
     const unsubMenu = onSnapshot(fireDoc(db, "metabase", merchantUid), (snap) => {
       if (snap.exists()) {
         const items = snap.data().items || [];
@@ -212,7 +194,6 @@ export default function MerchantDash() {
     <div
       className="max-w-md mx-auto bg-gray-100 dark:bg-gray-950 min-h-screen pb-20"
       onClick={() => {
-        // Browser Autoplay Fix: Prime the audio on first interaction
         if (audioRef.current) {
           audioRef.current.play().then(() => {
             audioRef.current.pause();
@@ -248,38 +229,23 @@ export default function MerchantDash() {
             ) : (
               [...orders].reverse().map(o => (
                 <div key={o.id} className="bg-white dark:bg-gray-900 p-5 rounded-3xl shadow-md border-l-8 border-orange-500">
-                  <div className="flex justify-between items-start">
-                    {/* Inside the Orders Tab map */}
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <p className="font-black text-xl dark:text-white italic">#{o.orderId || o.id.slice(0, 5)}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 flex items-center gap-1">
-                        <User size={12} />
-                        {/* Highlighted Fix: Check for userName specifically */}
+                      <p className="font-black text-2xl dark:text-white italic">#{o.orderId || o.id.slice(0, 5)}</p>
+                      <p className="text-[11px] text-gray-400 font-bold uppercase mt-1 flex items-center gap-1">
+                        <User size={14} />
                         {o.userName ? o.userName : "Name Not Provided"}
                       </p>
                     </div>
-                    <span className="text-[9px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-black uppercase">{o.status}</span>
+                    <span className="text-[9px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-black uppercase tracking-widest">{o.status.replace("_", " ")}</span>
                   </div>
 
-                  
-                  <div className="flex justify-between items-center bg-orange-50 dark:bg-orange-950/20 p-3 rounded-2xl mb-3 border border-orange-100 dark:border-orange-900/30">
-                    <div>
-                      <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Verification Code</p>
-                      <p className="text-xl font-black text-orange-700 dark:text-orange-400">CE-{o.verificationCode}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[8px] font-bold text-gray-400 uppercase">Match this with</p>
-                      <p className="text-[8px] font-bold text-gray-400 uppercase text-orange-600">Screenshot note</p>
-                    </div>
-                  </div>
-                  <div className="my-4 space-y-2 border-y dark:border-gray-800 py-3">
-                    {/* getGroupedItems ko bypass karke direct items use kar rahe hain brackets se bachne ke liye */}
+                  <div className="my-4 space-y-2 border-y dark:border-gray-800 py-4">
                     {o.items.map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center">
                         <div>
                           <p className="text-sm font-bold dark:text-gray-200">
                             <span className="text-orange-600 mr-2">{item.quantity}x</span>
-                            {/* Item name aur Category ko bina brackets ke merge kar rahe hain */}
                             {item.name} {item.category && item.category !== "General" ? item.category : ""}
                           </p>
                         </div>
@@ -300,7 +266,6 @@ export default function MerchantDash() {
                     <div className="flex gap-2">
                       {o.status === "AWAITING_VERIFICATION" ? (
                         <>
-                          {/* Accept Button */}
                           <button
                             onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })}
                             className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
@@ -308,7 +273,6 @@ export default function MerchantDash() {
                             Accept Payment
                           </button>
 
-                          {/* Highlighted Fix: New Reject Button */}
                           <button
                             onClick={() => {
                               if (window.confirm("Are you sure you want to reject this payment?")) {
@@ -321,7 +285,6 @@ export default function MerchantDash() {
                           </button>
                         </>
                       ) : (
-                        /* Status logic for confirmed/other orders */
                         o.status !== "COLLECTED" && (
                           <button
                             onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })}
@@ -333,8 +296,6 @@ export default function MerchantDash() {
                       )}
                     </div>
                   </div>
-
-
                 </div>
               ))
             )}
@@ -356,8 +317,8 @@ export default function MerchantDash() {
                   <div
                     key={o.id}
                     className={`bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border shadow-sm transition-all
-              ${isRejected ? 'border-red-500/20 bg-red-50/30 dark:bg-red-950/10' : 'border-gray-100 dark:border-gray-800'}
-            `}
+                      ${isRejected ? 'border-red-500/20 bg-red-50/30 dark:bg-red-950/10' : 'border-gray-100 dark:border-gray-800'}
+                    `}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div>
@@ -372,17 +333,15 @@ export default function MerchantDash() {
                         </p>
                       </div>
 
-                      {/* Status Badge */}
                       <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest
-                ${isRejected
+                        ${isRejected
                           ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
                           : 'bg-green-100 dark:bg-green-900/30 text-green-600'}
-              `}>
+                      `}>
                         {isRejected ? 'REJECTED' : 'COLLECTED'}
                       </span>
                     </div>
 
-                    {/* Items List */}
                     <div className={`p-4 rounded-3xl mb-4 ${isRejected ? 'bg-red-500/5' : 'bg-gray-50 dark:bg-gray-800/40'}`}>
                       {o.items?.map((item, idx) => (
                         <p key={idx} className={`text-sm font-bold ${isRejected ? 'text-red-900/40 dark:text-red-400/40 line-through' : 'dark:text-gray-200'}`}>
@@ -392,7 +351,6 @@ export default function MerchantDash() {
                       ))}
                     </div>
 
-                    {/* Timestamps */}
                     <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400 px-1">
                       <span className="flex items-center gap-1"><Clock size={10} /> {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       {isRejected ? (
