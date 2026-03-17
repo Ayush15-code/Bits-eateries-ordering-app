@@ -180,22 +180,36 @@ export default function EateriesList() {
           
             <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/5 space-y-4">
               <button 
-                onClick={() => {
-                  if(confirm("Are you sure you want to logout?")) {
-                    localStorage.clear(); 
-                    window.location.href = "/";
-                  }
-                }}
-                className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-500/10 text-red-600 rounded-[1.8rem] transition-all group active:scale-[0.98]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-600/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                  </div>
-                  <span className="text-[11px] font-black uppercase tracking-widest">Logout</span>
-                </div>
-                <ChevronRight size={14} className="opacity-40" />
-              </button>
+  onClick={() => {
+    if(confirm("Are you sure you want to logout?")) {
+      // 1. UI State Reset (Tray ko turant hide karne ke liye)
+      if (typeof setCart === 'function') setCart([]);
+      if (typeof setCartTotal === 'function') setCartTotal(0);
+
+      // 2. Clear Specific Cart Keys (Extra safety)
+      localStorage.removeItem('pending_cart');
+      localStorage.removeItem('pending_total');
+      localStorage.removeItem('pending_shop_id');
+      
+      // 3. Clear everything else and redirect
+      localStorage.clear(); 
+      window.location.href = "/";
+    }
+  }}
+  className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-500/10 text-red-600 rounded-[1.8rem] transition-all group active:scale-[0.98]"
+>
+  <div className="flex items-center gap-3">
+    <div className="w-9 h-9 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-600/20">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </div>
+    <span className="text-[11px] font-black uppercase tracking-widest">Logout</span>
+  </div>
+  <ChevronRight size={14} className="opacity-40" />
+</button>
               <p className="text-[8px] font-black text-gray-500 text-center uppercase tracking-[0.4em] opacity-60">CampusEats • BITS Goa</p>
             </div>
           </div>
