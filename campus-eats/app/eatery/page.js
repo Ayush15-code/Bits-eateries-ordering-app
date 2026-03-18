@@ -1,12 +1,14 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc } from 'firebase/firestore'; 
+// import { db } from '../lib/firebase';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
 import Link from 'next/link';
 import ThemeToggle from '../components/ThemeToggle';
-import InstallButton from '../components/InstallButton'; 
+import InstallButton from '../components/InstallButton';
 import { Clock, X, ChevronRight, Menu as MenuIcon, ReceiptText, Trash2 } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { db, auth } from '../lib/firebase';
 
 export default function EateriesList() {
   const [shops, setShops] = useState([]);
@@ -15,7 +17,28 @@ export default function EateriesList() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
   const [activeOrder, setActiveOrder] = useState(null);
-  
+  const handleLogout = async () => {
+  if (confirm("Are you sure you want to logout?")) {
+    try {
+      await signOut(auth);
+      // Clear the role cookie so Middleware kicks them to /login
+      document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+      
+      // Clear UI state
+      setCart([]);
+      setCartTotal(0);
+      
+      // Clear all storage (Cart, History, Shop IDs)
+      localStorage.clear();
+      
+      // Force reload to the landing/login page
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  }
+};
+
   const router = useRouter();
 
   useEffect(() => {
@@ -31,12 +54,12 @@ export default function EateriesList() {
     const savedTotal = localStorage.getItem('pending_total') || '0';
     const savedHistoryV2 = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
     const savedHistoryLegacy = JSON.parse(localStorage.getItem('order_history') || '[]');
-    
+
     setCart(savedCart);
     setCartTotal(Number(savedTotal));
     setOrderHistory(savedHistoryV2.length > 0 ? savedHistoryV2 : savedHistoryLegacy);
 
-    let unsubActiveOrder = () => {};
+    let unsubActiveOrder = () => { };
     if (savedHistoryV2.length > 0) {
       const latest = savedHistoryV2[0];
       const isRecent = !latest.timestamp || (Date.now() - latest.timestamp < 30 * 60 * 1000);
@@ -67,7 +90,7 @@ export default function EateriesList() {
 
   // --- NEW: CLEAR CART LOGIC ---
   const clearCart = (e) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     if (confirm("Clear all items from your tray?")) {
       setCart([]);
       setCartTotal(0);
@@ -80,7 +103,7 @@ export default function EateriesList() {
   const clearHistory = () => {
     if (confirm("Delete all order history? This cannot be undone.")) {
       localStorage.removeItem('order_history');
-      localStorage.removeItem('order_history_v2'); 
+      localStorage.removeItem('order_history_v2');
       setOrderHistory([]);
       setActiveOrder(null);
     }
@@ -88,10 +111,10 @@ export default function EateriesList() {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen relative text-gray-900 dark:text-gray-100 transition-colors">
-      
+
       {/* --- SIDEBAR DRAWER --- */}
       <div className={`fixed inset-0 z-[100] transition-visibility ${isSidebarOpen ? 'visible' : 'invisible'}`}>
-        <div 
+        <div
           className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -109,7 +132,7 @@ export default function EateriesList() {
                   </button>
                 )}
                 <button onClick={() => setIsSidebarOpen(false)} className="p-2 bg-gray-50 dark:bg-white/5 rounded-full">
-                  <X size={20}/>
+                  <X size={20} />
                 </button>
               </div>
             </div>
@@ -122,12 +145,12 @@ export default function EateriesList() {
                 const orderTotal = isObject ? (order.total || order.totalPrice) : null;
                 const orderItems = isObject ? (order.items || []) : [];
                 return (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     onClick={() => {
-                        setIsSidebarOpen(false);
-                        router.push(`/status/${orderId}`);
-                    }} 
+                      setIsSidebarOpen(false);
+                      router.push(`/status/${orderId}`);
+                    }}
                     className="p-5 bg-gray-50 dark:bg-white/5 rounded-4xl flex flex-col gap-3 group cursor-pointer border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]"
                   >
                     <div className="flex justify-between items-start">
@@ -177,39 +200,24 @@ export default function EateriesList() {
                 </div>
               )}
             </div>
-          
-            <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/5 space-y-4">
-              <button 
-  onClick={() => {
-    if(confirm("Are you sure you want to logout?")) {
-      // 1. UI State Reset (Tray ko turant hide karne ke liye)
-      if (typeof setCart === 'function') setCart([]);
-      if (typeof setCartTotal === 'function') setCartTotal(0);
 
-      // 2. Clear Specific Cart Keys (Extra safety)
-      localStorage.removeItem('pending_cart');
-      localStorage.removeItem('pending_total');
-      localStorage.removeItem('pending_shop_id');
-      
-      // 3. Clear everything else and redirect
-      localStorage.clear(); 
-      window.location.href = "/";
-    }
-  }}
-  className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-500/10 text-red-600 rounded-[1.8rem] transition-all group active:scale-[0.98]"
->
-  <div className="flex items-center gap-3">
-    <div className="w-9 h-9 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-600/20">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-        <polyline points="16 17 21 12 16 7"/>
-        <line x1="21" y1="12" x2="9" y2="12"/>
-      </svg>
-    </div>
-    <span className="text-[11px] font-black uppercase tracking-widest">Logout</span>
-  </div>
-  <ChevronRight size={14} className="opacity-40" />
-</button>
+            <div className="mt-auto pt-6 border-t border-gray-100 dark:border-white/5 space-y-4">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-500/10 text-red-600 rounded-[1.8rem] transition-all group active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-600/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest">Logout</span>
+                </div>
+                <ChevronRight size={14} className="opacity-40" />
+              </button>
               <p className="text-[8px] font-black text-gray-500 text-center uppercase tracking-[0.4em] opacity-60">CampusEats • BITS Goa</p>
             </div>
           </div>
@@ -227,7 +235,7 @@ export default function EateriesList() {
             <p className="text-gray-500 dark:text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mt-1">BITS GOA</p>
           </div>
           <div className="flex items-center gap-2">
-            <InstallButton /> 
+            <InstallButton />
             <ThemeToggle />
           </div>
         </div>
@@ -262,7 +270,7 @@ export default function EateriesList() {
 
       {/* --- LIVE STATUS BAR --- */}
       {activeOrder && activeOrder.status !== 'COLLECTED' && activeOrder.status !== 'REJECTED' && (
-        <div 
+        <div
           onClick={() => router.push(`/order-status/${activeOrder.docId || activeOrder.id}`)}
           className="fixed bottom-24 left-6 right-6 bg-orange-600 p-4 rounded-[2rem] shadow-2xl flex items-center justify-between z-40 active:scale-95 transition-all cursor-pointer"
         >
@@ -284,39 +292,39 @@ export default function EateriesList() {
       )}
 
       {/* --- UPDATED CART BANNER WITH EXACT CSS --- */}
-{cart.length > 0 && (
-  <div className="fixed bottom-10 left-0 right-0 px-6 z-50 flex justify-center">
-    {/* Container: Same bg, rounded, and shadow as your snippet */}
-    <div className="w-full max-w-md bg-orange-600 text-white p-5 rounded-[2.8rem] shadow-[0_20px_50px_rgba(249,115,22,0.4)] flex items-center justify-between relative overflow-visible">
-      
-      {/* Small Cross Button: Placed at the top-right edge */}
-      <button 
-        onClick={clearCart}
-        className="absolute -top-2 -right-1 w-7 h-7 bg-white text-orange-600 rounded-full flex items-center justify-center shadow-lg hover:bg-red-100 transition-colors z-20"
-      >
-        <X size={14} strokeWidth={3} />
-      </button>
+      {cart.length > 0 && (
+        <div className="fixed bottom-10 left-0 right-0 px-6 z-50 flex justify-center">
+          {/* Container: Same bg, rounded, and shadow as your snippet */}
+          <div className="w-full max-w-md bg-orange-600 text-white p-5 rounded-[2.8rem] shadow-[0_20px_50px_rgba(249,115,22,0.4)] flex items-center justify-between relative overflow-visible">
 
-      {/* Left Side Info */}
-      <div className="flex flex-col pl-3">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-0.5">
-          Your Tray
-        </span>
-        <span className="font-black text-lg italic">
-          {cart.length} Items • ₹{cartTotal}
-        </span>
-      </div>
+            {/* Small Cross Button: Placed at the top-right edge */}
+            <button
+              onClick={clearCart}
+              className="absolute -top-2 -right-1 w-7 h-7 bg-white text-orange-600 rounded-full flex items-center justify-center shadow-lg hover:bg-red-100 transition-colors z-20"
+            >
+              <X size={14} strokeWidth={3} />
+            </button>
 
-      {/* Checkout Button */}
-      <button 
-        onClick={() => router.push('/checkout')} 
-        className="bg-white text-orange-600 px-10 py-4 rounded-[1.8rem] font-black text-[12px] uppercase tracking-widest active:scale-95 transition-transform"
-      >
-        Checkout →
-      </button>
-    </div>
-  </div>
-)}
+            {/* Left Side Info */}
+            <div className="flex flex-col pl-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-0.5">
+                Your Tray
+              </span>
+              <span className="font-black text-lg italic">
+                {cart.length} Items • ₹{cartTotal}
+              </span>
+            </div>
+
+            {/* Checkout Button */}
+            <button
+              onClick={() => router.push('/checkout')}
+              className="bg-white text-orange-600 px-10 py-4 rounded-[1.8rem] font-black text-[12px] uppercase tracking-widest active:scale-95 transition-transform"
+            >
+              Checkout →
+            </button>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

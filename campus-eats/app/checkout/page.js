@@ -6,7 +6,7 @@ import {
   collection, doc, runTransaction, serverTimestamp, updateDoc, getDoc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { QRCodeCanvas } from 'qrcode.react'; 
+import { QRCodeCanvas } from 'qrcode.react';
 import { ChevronLeft, Trash2, Camera, Loader2, Share2, Plus, Minus, X } from 'lucide-react';
 
 export default function Checkout() {
@@ -74,7 +74,20 @@ export default function Checkout() {
       router.push('/eatery'); // Redirect back to shop list/menu
     }
   };
+  const handleDownloadQR = () => {
+    const canvas = document.getElementById('qr-canvas');
+    if (!canvas) return;
 
+    // Create a temporary link element
+    const link = document.createElement('a');
+    link.download = `CampusEats_QR_${lastNumericId || 'Order'}.png`;
+    link.href = canvas.toDataURL('image/png');
+
+    // Trigger the download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   const handleShareAndPay = async () => {
     try {
       const canvas = document.getElementById('qr-canvas');
@@ -199,14 +212,14 @@ export default function Checkout() {
         timestamp: Date.now(),
         shopId: shopId
       };
-      
+
       const prevHistory = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
       localStorage.setItem('order_history_v2', JSON.stringify([newOrder, ...prevHistory]));
       localStorage.setItem('active_order_id', lastCreatedOrderId);
 
       localStorage.removeItem('pending_cart');
       localStorage.removeItem('pending_shop_id');
-      
+
       setCart([]);
       setShopId('');
       setTotal(0);
@@ -221,18 +234,18 @@ export default function Checkout() {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-[#050505] min-h-screen text-gray-900 dark:text-white transition-colors">
-      
+
       {/* Header with Back Button and NEW CLEAR CROSS */}
       <div className="flex justify-between items-center mb-8">
         <button onClick={() => router.back()} className="p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 active:scale-90 transition-all shadow-sm text-orange-600">
           <ChevronLeft size={20} />
         </button>
-        
+
         <h1 className="text-xl font-black uppercase italic tracking-tighter">Review Order</h1>
-        
+
         {/* CLEAR CROSS BUTTON */}
-        <button 
-          onClick={clearCart} 
+        <button
+          onClick={clearCart}
           className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20 active:scale-90 transition-all shadow-sm text-red-500"
         >
           <X size={20} />
@@ -266,7 +279,7 @@ export default function Checkout() {
                   <Trash2 size={18} />
                 </button>
               </div>
-              
+
               <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-white/5">
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-black/40 p-1 rounded-xl border border-gray-200 dark:border-white/5">
                   <button onClick={() => updateQty(index, -1)} className="p-2"><Minus size={14} /></button>
@@ -306,6 +319,13 @@ export default function Checkout() {
                 </div>
                 <button onClick={handleShareAndPay} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-orange-600/20">
                   <Share2 size={16} /> Share QR & Pay
+                </button>
+                <button
+                  onClick={handleDownloadQR}
+                  className="w-full bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-500 py-3 rounded-2xl font-black uppercase text-[9px] border border-orange-100 dark:border-orange-900/50 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="9" x2="12" y2="15" /></svg>
+                  Save to Gallery
                 </button>
               </div>
               <div className="space-y-3">

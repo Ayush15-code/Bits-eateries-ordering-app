@@ -2,11 +2,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from './lib/firebase';
-import { 
-  signInWithEmailAndPassword, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut 
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -23,7 +23,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     const provider = new GoogleAuthProvider();
-    
+
     // Suggest the BITS domain in the account picker
     provider.setCustomParameters({ hd: "bits-pilani.ac.in" });
 
@@ -31,10 +31,11 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
+
       // Validate Domain
       const email = user.email || "";
-      const isBitsEmail = email.endsWith("@goa.bits-pilani.ac.in") || 
-                         email.endsWith(".bits-pilani.ac.in");
+      const isBitsEmail = email.endsWith("@goa.bits-pilani.ac.in") ||
+        email.endsWith(".bits-pilani.ac.in");
 
       if (!isBitsEmail) {
         await signOut(auth); // Immediately boot unauthorized users
@@ -42,8 +43,11 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+      document.cookie = `userRole=student; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
-      window.location.replace('/eatery'); 
+      // window.location.replace('/eatery');
+
+      window.location.replace('/eatery');
     } catch (err) {
       console.error(err);
       setError("Google Login failed. Please try again.");
@@ -59,7 +63,10 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      window.location.replace('/merchant/dashboard');
+      document.cookie = `userRole=merchant; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      // window.location.replace('/merchant/dashboard');
+      window.location.href = '/merchant/dashboard';
+      
     } catch (err) {
       setError("Invalid merchant credentials.");
       setLoading(false);
@@ -138,7 +145,7 @@ export default function LoginPage() {
       </div>
 
       <p className="mt-8 text-[10px] text-gray-400 dark:text-gray-600 font-bold uppercase tracking-widest text-center">
-        CampusEats • BITS Pilani<br/>KK Birla Goa Campus
+        CampusEats • BITS Pilani<br />KK Birla Goa Campus
       </p>
     </div>
   );

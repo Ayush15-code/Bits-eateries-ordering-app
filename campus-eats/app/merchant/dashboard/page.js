@@ -20,6 +20,31 @@ import {
 import { Eye, EyeOff, X, UtensilsCrossed, ChevronDown, Edit3, History, Trash2, Clock, User, Hash } from 'lucide-react';
 
 export default function MerchantDash() {
+  const [isAuthorized, setIsAuthorized] = useState(false); // New state
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Double check the cookie or firestore role here
+        const role = document.cookie.split('; ').find(row => row.startsWith('userRole='))?.split('=')[1];
+
+        if (role === 'merchant') {
+          setIsAuthorized(true);
+        } else {
+          window.location.href = '/merchant/login';
+        }
+      } else {
+        window.location.href = '/merchant/login';
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // If not authorized yet, show a blank screen or a spinner
+  // This prevents the "Flash" of the dashboard
+  if (!isAuthorized) {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center font-black text-orange-600">VERIFYING...</div>;
+  }
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('orders');
@@ -93,7 +118,7 @@ export default function MerchantDash() {
 
     const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
       const updatedOrders = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-      setOrders(updatedOrders); 
+      setOrders(updatedOrders);
 
       snap.docChanges().forEach((change) => {
         if (change.type === "added") {
