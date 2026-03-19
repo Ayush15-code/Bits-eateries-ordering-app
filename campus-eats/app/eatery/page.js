@@ -134,10 +134,9 @@ export default function EateriesList() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen relative text-gray-900 dark:text-gray-100 transition-colors">
-
+    <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen relative text-gray-900 dark:text-gray-100 transition-colors flex flex-col">
       {/* --- SIDEBAR DRAWER --- */}
-      <div className={`fixed inset-0 z-[100] transition-visibility ${isSidebarOpen ? 'visible' : 'invisible'}`}>
+      <div className={`fixed inset-0 z-100 transition-visibility ${isSidebarOpen ? 'visible' : 'invisible'}`}>
         <div
           className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}
           onClick={() => setIsSidebarOpen(false)}
@@ -248,55 +247,84 @@ export default function EateriesList() {
         </div>
       </div>
 
-      {/* --- HEADER --- */}
-      <header className="mb-12">
-        <div className="flex items-center justify-between gap-4">
-          <button onClick={() => setIsSidebarOpen(true)} className="w-12 h-12 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-700 dark:text-white active:scale-90 transition-all">
-            <MenuIcon size={24} strokeWidth={2.5} />
-          </button>
-          <div className="text-center flex-1">
-            <h1 className="text-3xl font-black text-orange-600 tracking-tighter leading-none italic">CampusEats</h1>
-            <p className="text-gray-500 dark:text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mt-1">BITS GOA</p>
+      <div className="flex-1 flex flex-col">
+        {/* --- HEADER --- */}
+        <header className="mb-12">
+          <div className="flex items-center justify-between gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="w-12 h-12 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-700 dark:text-white active:scale-90 transition-all">
+              <MenuIcon size={24} strokeWidth={2.5} />
+            </button>
+            <div className="text-center flex-1">
+              <h1 className="text-3xl font-black text-orange-600 tracking-tighter leading-none italic">CampusEats</h1>
+              <p className="text-gray-500 dark:text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mt-1">BITS GOA</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <InstallButton />
+              <ThemeToggle />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <InstallButton />
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* --- EATERIES LIST --- */}
-      <div className="grid gap-5 mb-24">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1">Available Eateries</p>
-        {shops.map((shop) => (
-          <Link key={shop.id} href={`/eatery/${shop.id}`}>
-            <div className={`bg-white dark:bg-gray-900 p-5 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-800 transition-all active:scale-[0.98] group ${!shop.isOpen && 'opacity-60 grayscale'}`}>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-5">
-                  <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center text-3xl ${shop.isOpen ? 'bg-orange-50 dark:bg-orange-900/20' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                    {shop.isOpen ? '🍴' : '😴'}
+        {/* --- EATERIES LIST --- */}
+        <div className="grid gap-5 mb-8">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1">Available Eateries</p>
+          {shops.map((shop) => (
+            <Link key={shop.id} href={`/eatery/${shop.id}`}>
+              <div className={`bg-white dark:bg-gray-900 p-5 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-800 transition-all active:scale-[0.98] group ${!shop.isOpen && 'opacity-60 grayscale'}`}>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-5">
+                    <div className={`w-14 h-14 rounded-3xl flex items-center justify-center text-3xl ${shop.isOpen ? 'bg-orange-50 dark:bg-orange-900/20' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                      {shop.isOpen ? '🍴' : '😴'}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-gray-900 dark:text-white leading-tight tracking-tight">{shop.name}</h3>
+                      <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${shop.isOpen ? 'text-green-500' : 'text-gray-400'}`}>
+                        {shop.isOpen ? '● Open Now' : 'Closed'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white leading-tight tracking-tight">{shop.name}</h3>
-                    <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${shop.isOpen ? 'text-green-500' : 'text-gray-400'}`}>
-                      {shop.isOpen ? '● Open Now' : 'Closed'}
-                    </p>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                    <ChevronRight size={18} />
                   </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                  <ChevronRight size={18} />
                 </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          ))}
+        </div>
+
+        {/* --- FOOTER (NOW PUSHED TO BOTTOM) --- */}
+        <br></br>
+         <br></br>
+          <br></br>
+           <br></br>
+            <br></br>
+             <br></br>
+              <br></br>
+               <br></br>
+                <br></br>
+                  
+       <footer className={`py-10 text-center border-t border-gray-100 dark:border-white/5 ${(cart.length > 0 || activeOrder) ? 'pb-32' : 'pb-10'}`}>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">
+          Designed & Developed by
+        </p>
+        <p className="text-sm font-semibold text-orange-600 italic mb-4">
+          Tushar Nandal & Ayush Ranjan Shrivastava
+        </p>
+        <div className="inline-block px-4 py-1 rounded-full bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/5">
+          <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500">
+            Built with love in <span className="text-orange-600">AH9</span>
+          </p>
+        </div>
+      </footer>
       </div>
 
-      {/* --- LIVE STATUS BAR --- */}
+      {/* --- FLOATING UI (STATUS & CART) --- */}
+      <div className="h-28" /> {/* Spacer for fixed banners */}
+      
       {activeOrder && activeOrder.status !== 'COLLECTED' && activeOrder.status !== 'REJECTED' && (
         <div
           onClick={() => router.push(`/order-status/${activeOrder.docId || activeOrder.id}`)}
-          className="fixed bottom-24 left-6 right-6 bg-orange-600 p-4 rounded-[2rem] shadow-2xl flex items-center justify-between z-40 active:scale-95 transition-all cursor-pointer"
+          className="fixed bottom-24 left-6 right-6 bg-orange-600 p-4 rounded-4xl shadow-2xl flex items-center justify-between z-40 active:scale-95 transition-all cursor-pointer"
         >
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-2xl">
@@ -315,7 +343,6 @@ export default function EateriesList() {
         </div>
       )}
 
-      {/* --- CART BANNER --- */}
       {cart.length > 0 && (
         <div className="fixed bottom-10 left-0 right-0 px-6 z-50 flex justify-center">
           <div className="w-full max-w-md bg-orange-600 text-white p-5 rounded-[2.8rem] shadow-[0_20px_50px_rgba(249,115,22,0.4)] flex items-center justify-between relative overflow-visible">
