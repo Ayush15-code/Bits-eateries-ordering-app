@@ -16,8 +16,8 @@ globalThis.__BUILD_MANIFEST = {
     "static/chunks/node_modules_next_dist_client_17643121._.js",
     "static/chunks/node_modules_next_dist_f3530cac._.js",
     "static/chunks/node_modules_@swc_helpers_cjs_d80fb378._.js",
-    "static/chunks/_a0ff3932._.js",
-    "static/chunks/turbopack-_23a915ee._.js"
+    "static/chunks/campus-eats_a0ff3932._.js",
+    "static/chunks/turbopack-campus-eats_23a915ee._.js"
   ]
 };
 globalThis.__BUILD_MANIFEST.lowPriorityFiles = [

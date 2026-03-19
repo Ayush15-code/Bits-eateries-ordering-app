@@ -293,29 +293,22 @@ export default function EateriesList() {
         </div>
 
         {/* --- FOOTER (NOW PUSHED TO BOTTOM) --- */}
-        <br></br>
-         <br></br>
-          <br></br>
-           <br></br>
-            <br></br>
-             <br></br>
-              <br></br>
-               <br></br>
-                <br></br>
-                  
-       <footer className={`py-10 text-center border-t border-gray-100 dark:border-white/5 ${(cart.length > 0 || activeOrder) ? 'pb-32' : 'pb-10'}`}>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">
+        {/* --- FIXED DEVELOPER FOOTER --- */}
+      <footer className="fixed bottom-0 left-0 right-0 z-[30] py-4 text-center bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-md border-t border-gray-100 dark:border-white/5 mx-auto max-w-md">
+        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-gray-500 mb-0.5">
           Designed & Developed by
         </p>
-        <p className="text-sm font-semibold text-orange-600 italic mb-4">
+        <p className="text-[11px] font-semibold text-orange-600 italic mb-2">
           Tushar Nandal & Ayush Ranjan Shrivastava
         </p>
-        <div className="inline-block px-4 py-1 rounded-full bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/5">
-          <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500">
+        <div className="inline-block px-3 py-0.5 rounded-full bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/5">
+          <p className="text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500">
             Built with love in <span className="text-orange-600">AH9</span>
           </p>
         </div>
       </footer>
+                  
+       
       </div>
 
       {/* --- FLOATING UI (STATUS & CART) --- */}
