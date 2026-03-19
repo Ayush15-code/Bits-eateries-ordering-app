@@ -20,31 +20,8 @@ import {
 import { Eye, EyeOff, X, UtensilsCrossed, ChevronDown, Edit3, History, Trash2, Clock, User, Hash } from 'lucide-react';
 
 export default function MerchantDash() {
-  const [isAuthorized, setIsAuthorized] = useState(false); // New state
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Double check the cookie or firestore role here
-        const role = document.cookie.split('; ').find(row => row.startsWith('userRole='))?.split('=')[1];
-
-        if (role === 'merchant') {
-          setIsAuthorized(true);
-        } else {
-          window.location.href = '/merchant/login';
-        }
-      } else {
-        window.location.href = '/merchant/login';
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // If not authorized yet, show a blank screen or a spinner
-  // This prevents the "Flash" of the dashboard
-  if (!isAuthorized) {
-    return <div className="min-h-screen bg-gray-950 flex items-center justify-center font-black text-orange-600">VERIFYING...</div>;
-  }
+  // --- 1. ALL HOOKS MUST BE DECLARED FIRST (Top Level) ---
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('orders');
@@ -55,14 +32,13 @@ export default function MerchantDash() {
   const [shopStatus, setShopStatus] = useState(true);
   const [viewingScreenshot, setViewingScreenshot] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
-
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editItem, setEditItem] = useState({ name: '', price: '', category: '' });
   const [editingItemId, setEditingItemId] = useState(null);
+  const [historyOrders, setHistoryOrders] = useState([]);
 
   const router = useRouter();
   const audioRef = useRef(null);
-  const [historyOrders, setHistoryOrders] = useState([]);
 
   // Helper for grouping items
   const getGroupedItems = (items) => {
@@ -75,41 +51,48 @@ export default function MerchantDash() {
     }, {});
   };
 
-  // Auth Effect + Notification Permission Request
+  // Auth & Role Verification Effect
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.push('/merchant/login');
-      } else {
-        setMerchantUid(user.uid);
-
-        if ('serviceWorker' in navigator && 'Notification' in window) {
-          Notification.requestPermission();
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW Registered'))
-            .catch(err => console.log('SW Registration Failed', err));
-        }
-
-        try {
-          const userDoc = await fireGetDoc(fireDoc(db, "users", user.uid));
-          if (userDoc.exists() && userDoc.data().shopId) {
-            setMerchantShopId(userDoc.data().shopId);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const role = document.cookie.split('; ').find(row => row.startsWith('userRole='))?.split('=')[1];
+        if (role === 'merchant') {
+          setIsAuthorized(true);
+          setMerchantUid(user.uid);
+          
+          // Setup Service Worker for notifications
+          if ('serviceWorker' in navigator && 'Notification' in window) {
+            Notification.requestPermission();
+            navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Error', err));
           }
-          setLoading(false);
-        } catch (err) {
-          setLoading(false);
+
+          // Get Merchant Shop ID
+          try {
+            const userDoc = await fireGetDoc(fireDoc(db, "users", user.uid));
+            if (userDoc.exists() && userDoc.data().shopId) {
+              setMerchantShopId(userDoc.data().shopId);
+            }
+            setLoading(false);
+          } catch (err) {
+            setLoading(false);
+          }
+        } else {
+          router.push('/merchant/login');
         }
+      } else {
+        router.push('/merchant/login');
       }
     });
 
     audioRef.current = new Audio("/notification.mp3");
-    return () => unsubscribeAuth();
+    return () => unsubscribe();
   }, [router]);
 
-  // Real-time Listeners
+  // Real-time Listeners (Orders, History, Shop Status, Menu)
   useEffect(() => {
     if (!merchantShopId || !merchantUid) return;
 
+    // Active Orders
     const qOrders = query(
       collection(db, "orders"),
       where("shopId", "==", merchantShopId),
@@ -124,13 +107,8 @@ export default function MerchantDash() {
         if (change.type === "added") {
           const orderData = change.doc.data();
           const orderTime = orderData.createdAt?.toMillis() || Date.now();
-          const now = Date.now();
-
-          if (now - orderTime < 30000) {
-            if (audioRef.current) {
-              audioRef.current.play().catch(e => console.log("Sound blocked"));
-            }
-
+          if (Date.now() - orderTime < 30000) {
+            if (audioRef.current) audioRef.current.play().catch(e => {});
             if (navigator.serviceWorker.controller) {
               navigator.serviceWorker.controller.postMessage({
                 type: 'NEW_ORDER',
@@ -141,10 +119,9 @@ export default function MerchantDash() {
           }
         }
       });
-    }, (error) => {
-      console.error("Firestore Error:", error);
     });
 
+    // History (Last 2 Hours)
     const twoHoursAgo = new Date();
     twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
     const qHistory = query(
@@ -159,10 +136,12 @@ export default function MerchantDash() {
       setHistoryOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     });
 
+    // Shop Status Listener
     const unsubShop = onSnapshot(fireDoc(db, "shops", merchantShopId), (snap) => {
       if (snap.exists()) setShopStatus(snap.data().isOpen);
     });
 
+    // Menu Listener
     const unsubMenu = onSnapshot(fireDoc(db, "metabase", merchantUid), (snap) => {
       if (snap.exists()) {
         const items = snap.data().items || [];
@@ -192,6 +171,16 @@ export default function MerchantDash() {
     }, {});
   }, [menuItems]);
 
+  // --- 2. CONDITIONAL RENDER CHECKS (Must be AFTER Hooks) ---
+  if (!isAuthorized) {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center font-black text-orange-600">VERIFYING...</div>;
+  }
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center dark:bg-gray-950 font-black text-orange-600">LOADING...</div>;
+  }
+
+  // --- 3. UI HANDLERS ---
   const toggleAllCategories = (isOpen) => {
     const newState = {};
     Object.keys(groupedItemsMemo).forEach(cat => newState[cat] = isOpen);
@@ -213,8 +202,6 @@ export default function MerchantDash() {
     setIsEditingItem(false);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-gray-950 font-black text-orange-600">LOADING...</div>;
-
   return (
     <div
       className="max-w-md mx-auto bg-gray-100 dark:bg-gray-950 min-h-screen pb-20"
@@ -230,7 +217,7 @@ export default function MerchantDash() {
       {/* HEADER */}
       <div className="bg-white dark:bg-gray-900 p-6 shadow-sm sticky top-0 z-10 border-b dark:border-gray-800">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-black text-orange-600 italic uppercase">CampusEats</h1>
+          <h1 className="text-2xl font-black text-orange-600 italic uppercase tracking-tighter">CampusEats</h1>
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <button onClick={() => signOut(auth)} className="text-[10px] font-black text-red-500 uppercase border border-red-100 px-2 py-1 rounded-lg">Logout</button>
@@ -268,55 +255,27 @@ export default function MerchantDash() {
                   <div className="my-4 space-y-2 border-y dark:border-gray-800 py-4">
                     {o.items.map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center">
-                        <div>
-                          <p className="text-sm font-bold dark:text-gray-200">
-                            <span className="text-orange-600 mr-2">{item.quantity}x</span>
-                            {item.name} {item.category && item.category !== "General" ? item.category : ""}
-                          </p>
-                        </div>
+                        <p className="text-sm font-bold dark:text-gray-200">
+                          <span className="text-orange-600 mr-2">{item.quantity}x</span>
+                          {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                        </p>
                       </div>
                     ))}
                   </div>
 
                   <div className="space-y-2">
                     {o.status === "AWAITING_VERIFICATION" && (
-                      <button
-                        onClick={() => setViewingScreenshot(o.screenshotBase64)}
-                        className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform"
-                      >
-                        View Payment Proof
-                      </button>
+                      <button onClick={() => setViewingScreenshot(o.screenshotBase64)} className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform">View Payment Proof</button>
                     )}
-
                     <div className="flex gap-2">
                       {o.status === "AWAITING_VERIFICATION" ? (
                         <>
-                          <button
-                            onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })}
-                            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
-                          >
-                            Accept Payment
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              if (window.confirm("Are you sure you want to reject this payment?")) {
-                                fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "REJECTED" });
-                              }
-                            }}
-                            className="px-4 bg-red-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
-                          >
-                            Reject
-                          </button>
+                          <button onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "CONFIRMED" })} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">Accept Payment</button>
+                          <button onClick={() => { if (window.confirm("Reject this order?")) fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "REJECTED" }); }} className="px-4 bg-red-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Reject</button>
                         </>
                       ) : (
                         o.status !== "COLLECTED" && (
-                          <button
-                            onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })}
-                            className="flex-1 bg-gray-900 dark:bg-white dark:text-black text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform"
-                          >
-                            Mark Collected
-                          </button>
+                          <button onClick={() => fireUpdateDoc(fireDoc(db, "orders", o.id), { status: "COLLECTED", collectedAt: new Date() })} className="flex-1 bg-gray-900 dark:bg-white dark:text-black text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest">Mark Collected</button>
                         )
                       )}
                     </div>
@@ -327,88 +286,46 @@ export default function MerchantDash() {
           </div>
         )}
 
-        {/* --- Merchant History Tab Section --- */}
+        {/* --- HISTORY TAB --- */}
         {activeTab === 'history' && (
-          <div className="space-y-4 animate-in fade-in duration-500">
+          <div className="space-y-4">
             {historyOrders.length === 0 ? (
-              <div className="text-center py-20 opacity-20 italic">
-                <History size={48} className="mx-auto mb-4" />
-                <p className="text-[10px] font-black uppercase">No Recent History</p>
-              </div>
+              <div className="text-center py-20 opacity-20 italic"><History size={48} className="mx-auto mb-4" /><p className="text-[10px] font-black uppercase">No Recent History</p></div>
             ) : (
-              historyOrders.map((o) => {
-                const isRejected = o.status === 'REJECTED';
-                return (
-                  <div
-                    key={o.id}
-                    className={`bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border shadow-sm transition-all
-                      ${isRejected ? 'border-red-500/20 bg-red-50/30 dark:bg-red-950/10' : 'border-gray-100 dark:border-gray-800'}
-                    `}
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className={`text-xl font-black italic ${isRejected ? 'text-red-500' : 'dark:text-white'}`}>
-                            #{o.orderId || o.id?.slice(-4).toUpperCase()}
-                          </h3>
-                          {isRejected && <span className="text-[10px] font-black text-red-500 uppercase tracking-tighter">FAILED</span>}
-                        </div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {o.userName || "Unknown Student"}
-                        </p>
-                      </div>
-
-                      <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest
-                        ${isRejected
-                          ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
-                          : 'bg-green-100 dark:bg-green-900/30 text-green-600'}
-                      `}>
-                        {isRejected ? 'REJECTED' : 'COLLECTED'}
-                      </span>
+              historyOrders.map((o) => (
+                <div key={o.id} className={`bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border shadow-sm ${o.status === 'REJECTED' ? 'border-red-500/20' : 'border-gray-100 dark:border-gray-800'}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-black italic dark:text-white">#{o.orderId || o.id?.slice(-4).toUpperCase()}</h3>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{o.userName || "Unknown Student"}</p>
                     </div>
-
-                    <div className={`p-4 rounded-3xl mb-4 ${isRejected ? 'bg-red-500/5' : 'bg-gray-50 dark:bg-gray-800/40'}`}>
+                    <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${o.status === 'REJECTED' ? 'bg-red-500 text-white' : 'bg-green-100 text-green-600'}`}>{o.status}</span>
+                  </div>
+                  <div className="p-4 rounded-3xl mb-4 bg-gray-50 dark:bg-gray-800/40">
                       {o.items?.map((item, idx) => (
-                        <p key={idx} className={`text-sm font-bold ${isRejected ? 'text-red-900/40 dark:text-red-400/40 line-through' : 'dark:text-gray-200'}`}>
-                          <span className={`${isRejected ? 'text-red-400' : 'text-orange-600'} mr-2`}>{item.quantity}x</span>
-                          {item.name} {item.category && item.category !== "General" ? item.category : ""}
+                        <p key={idx} className="text-sm font-bold dark:text-gray-200">
+                          <span className="text-orange-600 mr-2">{item.quantity}x</span>
+                          {item.name}
                         </p>
                       ))}
-                    </div>
-
-                    <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400 px-1">
-                      <span className="flex items-center gap-1"><Clock size={10} /> {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      {isRejected ? (
-                        <span className="text-red-500">PAYMENT REJECTED</span>
-                      ) : (
-                        <span className="text-green-600 italic font-black">PICKED: {new Date(o.collectedAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      )}
-                    </div>
                   </div>
-                );
-              })
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase text-gray-400">
+                    <span className="flex items-center gap-1"><Clock size={10} /> {new Date(o.createdAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    {o.collectedAt && <span className="text-green-600">Picked: {new Date(o.collectedAt?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         )}
+
         {/* --- MANAGE TAB --- */}
         {activeTab === 'manage' && (
           <div className="space-y-6">
             <div className={`p-6 rounded-3xl border-2 ${shopStatus ? 'bg-green-50 border-green-200 dark:bg-green-950/20' : 'bg-red-50 border-red-200'}`}>
               <div className="flex justify-between items-center">
-                <h3 className={`font-black uppercase text-[10px] tracking-widest ${shopStatus ? 'text-green-800' : 'text-red-800'}`}>Store {shopStatus ? 'Online' : 'Offline'}</h3>
-
-                <button
-                  onClick={() => {
-                    if (!merchantShopId) {
-                      alert("Shop ID not loaded yet!");
-                      return;
-                    }
-                    fireUpdateDoc(fireDoc(db, "shops", merchantShopId), { isOpen: !shopStatus });
-                  }}
-                  className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-black text-[10px] uppercase shadow-md"
-                >
-                  Toggle Status
-                </button>
+                <h3 className="font-black uppercase text-[10px] tracking-widest">Store {shopStatus ? 'Online' : 'Offline'}</h3>
+                <button onClick={() => fireUpdateDoc(fireDoc(db, "shops", merchantShopId), { isOpen: !shopStatus })} className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-black text-[10px] uppercase shadow-md">Toggle Status</button>
               </div>
             </div>
 
@@ -425,9 +342,7 @@ export default function MerchantDash() {
                       <ChevronDown size={18} className={`transition-transform ${openCategories[cat] ? 'rotate-180' : ''} text-orange-600`} />
                       <span className="text-[10px] font-black uppercase tracking-widest text-orange-600">{cat} ({groupedItemsMemo[cat].length})</span>
                     </button>
-                    <button onClick={() => toggleCategoryVisibility(cat)} className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${hiddenCategories.includes(cat) ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                      {hiddenCategories.includes(cat) ? 'Hidden' : 'Visible'}
-                    </button>
+                    <button onClick={() => toggleCategoryVisibility(cat)} className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${hiddenCategories.includes(cat) ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>{hiddenCategories.includes(cat) ? 'Hidden' : 'Visible'}</button>
                   </div>
                   {openCategories[cat] && (
                     <div className="p-2 space-y-2">
@@ -440,9 +355,7 @@ export default function MerchantDash() {
                               <p className="text-orange-500 font-black text-[10px]">₹{item.price || item.Price}</p>
                             </div>
                           </div>
-                          <button onClick={() => fireSetDoc(fireDoc(db, "metabase", merchantUid), { items: menuItems.map(i => i.id === item.id ? { ...i, isAvailable: !i.isAvailable } : i) }, { merge: true })} className={`px-4 py-2 rounded-xl text-[9px] font-black ${item.isAvailable ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-                            {item.isAvailable ? 'AVAILABLE' : 'OFF'}
-                          </button>
+                          <button onClick={() => fireSetDoc(fireDoc(db, "metabase", merchantUid), { items: menuItems.map(i => i.id === item.id ? { ...i, isAvailable: !i.isAvailable } : i) }, { merge: true })} className={`px-4 py-2 rounded-xl text-[9px] font-black ${item.isAvailable ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>{item.isAvailable ? 'AVAILABLE' : 'OFF'}</button>
                         </div>
                       ))}
                     </div>
@@ -475,7 +388,7 @@ export default function MerchantDash() {
         <div className="fixed inset-0 bg-black/90 z-[120] flex items-center justify-center p-6" onClick={() => setViewingScreenshot(null)}>
           <div className="relative max-w-sm w-full bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <img src={viewingScreenshot} alt="Proof" className="w-full h-auto" />
-            <button onClick={() => setViewingScreenshot(null)} className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-full"><X size={20} /></button>
+            <button onClick={() => setViewingScreenshot(null)} className="absolute top-4 right-4 bg-red-50 text-white p-2 rounded-full"><X size={20} /></button>
           </div>
         </div>
       )}

@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-// import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore';
 import Link from 'next/link';
 import ThemeToggle from '../components/ThemeToggle';
@@ -17,29 +16,55 @@ export default function EateriesList() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
   const [activeOrder, setActiveOrder] = useState(null);
-  const handleLogout = async () => {
-  if (confirm("Are you sure you want to logout?")) {
-    try {
-      await signOut(auth);
-      // Clear the role cookie so Middleware kicks them to /login
-      document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-      
-      // Clear UI state
-      setCart([]);
-      setCartTotal(0);
-      
-      // Clear all storage (Cart, History, Shop IDs)
-      localStorage.clear();
-      
-      // Force reload to the landing/login page
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  }
-};
-
+  
   const router = useRouter();
+
+  // --- 1. AUTO-DELETE HISTORY (12 HOURS LOGIC) ---
+  useEffect(() => {
+    const cleanOldHistory = () => {
+      const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+      const now = Date.now();
+      
+      // Dono storage keys ko clean karna hai
+      ['order_history', 'order_history_v2'].forEach(key => {
+        const history = JSON.parse(localStorage.getItem(key) || '[]');
+        if (history.length > 0) {
+          const updated = history.filter(order => {
+            // Agar timestamp nahi hai toh rehne do (safe bet), warna check karo
+            if (!order.timestamp) return true;
+            return (now - order.timestamp) < TWELVE_HOURS;
+          });
+
+          if (updated.length !== history.length) {
+            localStorage.setItem(key, JSON.stringify(updated));
+            // UI state ko update sirf active storage ke liye karo
+            if (key === 'order_history_v2' || (key === 'order_history' && !localStorage.getItem('order_history_v2'))) {
+              setOrderHistory(updated);
+            }
+          }
+        }
+      });
+    };
+
+    cleanOldHistory(); // Load par check karo
+    const interval = setInterval(cleanOldHistory, 60 * 60 * 1000); // Har ghante check karo
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleLogout = async () => {
+    if (confirm("Are you sure you want to logout?")) {
+      try {
+        await signOut(auth);
+        document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+        setCart([]);
+        setCartTotal(0);
+        localStorage.clear();
+        window.location.href = "/";
+      } catch (error) {
+        console.error("Logout failed:", error);
+      }
+    }
+  };
 
   useEffect(() => {
     const unsubShops = onSnapshot(collection(db, "shops"), (snap) => {
@@ -88,7 +113,6 @@ export default function EateriesList() {
     };
   }, []);
 
-  // --- NEW: CLEAR CART LOGIC ---
   const clearCart = (e) => {
     e.stopPropagation();
     if (confirm("Clear all items from your tray?")) {
@@ -291,21 +315,16 @@ export default function EateriesList() {
         </div>
       )}
 
-      {/* --- UPDATED CART BANNER WITH EXACT CSS --- */}
+      {/* --- CART BANNER --- */}
       {cart.length > 0 && (
         <div className="fixed bottom-10 left-0 right-0 px-6 z-50 flex justify-center">
-          {/* Container: Same bg, rounded, and shadow as your snippet */}
           <div className="w-full max-w-md bg-orange-600 text-white p-5 rounded-[2.8rem] shadow-[0_20px_50px_rgba(249,115,22,0.4)] flex items-center justify-between relative overflow-visible">
-
-            {/* Small Cross Button: Placed at the top-right edge */}
             <button
               onClick={clearCart}
               className="absolute -top-2 -right-1 w-7 h-7 bg-white text-orange-600 rounded-full flex items-center justify-center shadow-lg hover:bg-red-100 transition-colors z-20"
             >
               <X size={14} strokeWidth={3} />
             </button>
-
-            {/* Left Side Info */}
             <div className="flex flex-col pl-3">
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-0.5">
                 Your Tray
@@ -314,8 +333,6 @@ export default function EateriesList() {
                 {cart.length} Items • ₹{cartTotal}
               </span>
             </div>
-
-            {/* Checkout Button */}
             <button
               onClick={() => router.push('/checkout')}
               className="bg-white text-orange-600 px-10 py-4 rounded-[1.8rem] font-black text-[12px] uppercase tracking-widest active:scale-95 transition-transform"
