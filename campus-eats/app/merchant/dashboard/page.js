@@ -20,7 +20,7 @@ import {
 import { Eye, EyeOff, X, UtensilsCrossed, ChevronDown, Edit3, History, Trash2, Clock, User, Hash } from 'lucide-react';
 
 export default function MerchantDash() {
-  // --- 1. ALL HOOKS MUST BE DECLARED FIRST (Top Level) ---
+  // --- 1. ALL HOOKS ---
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,17 +40,6 @@ export default function MerchantDash() {
   const router = useRouter();
   const audioRef = useRef(null);
 
-  // Helper for grouping items
-  const getGroupedItems = (items) => {
-    return (items || []).reduce((acc, item) => {
-      const name = item.name || item.itemName || "Item";
-      const qty = Number(item.quantity || item.Quantity || item.qty || 1);
-      if (acc[name]) { acc[name].quantity += qty; }
-      else { acc[name] = { name: name, quantity: qty }; }
-      return acc;
-    }, {});
-  };
-
   // Auth & Role Verification Effect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -60,13 +49,11 @@ export default function MerchantDash() {
           setIsAuthorized(true);
           setMerchantUid(user.uid);
           
-          // Setup Service Worker for notifications
           if ('serviceWorker' in navigator && 'Notification' in window) {
             Notification.requestPermission();
             navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Error', err));
           }
 
-          // Get Merchant Shop ID
           try {
             const userDoc = await fireGetDoc(fireDoc(db, "users", user.uid));
             if (userDoc.exists() && userDoc.data().shopId) {
@@ -88,11 +75,10 @@ export default function MerchantDash() {
     return () => unsubscribe();
   }, [router]);
 
-  // Real-time Listeners (Orders, History, Shop Status, Menu)
+  // Real-time Listeners
   useEffect(() => {
     if (!merchantShopId || !merchantUid) return;
 
-    // Active Orders
     const qOrders = query(
       collection(db, "orders"),
       where("shopId", "==", merchantShopId),
@@ -121,7 +107,6 @@ export default function MerchantDash() {
       });
     });
 
-    // History (Last 2 Hours)
     const twoHoursAgo = new Date();
     twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
     const qHistory = query(
@@ -136,12 +121,10 @@ export default function MerchantDash() {
       setHistoryOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     });
 
-    // Shop Status Listener
     const unsubShop = onSnapshot(fireDoc(db, "shops", merchantShopId), (snap) => {
       if (snap.exists()) setShopStatus(snap.data().isOpen);
     });
 
-    // Menu Listener
     const unsubMenu = onSnapshot(fireDoc(db, "metabase", merchantUid), (snap) => {
       if (snap.exists()) {
         const items = snap.data().items || [];
@@ -171,16 +154,22 @@ export default function MerchantDash() {
     }, {});
   }, [menuItems]);
 
-  // --- 2. CONDITIONAL RENDER CHECKS (Must be AFTER Hooks) ---
-  if (!isAuthorized) {
-    return <div className="min-h-screen bg-gray-950 flex items-center justify-center font-black text-orange-600">VERIFYING...</div>;
-  }
+  // --- 2. UI HANDLERS ---
+  const handleTabChange = (tab) => {
+    if (tab === 'orders') {
+      setActiveTab(tab);
+      return;
+    }
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center dark:bg-gray-950 font-black text-orange-600">LOADING...</div>;
-  }
+    const confirmMessage = tab === 'history' 
+      ? "Do you want to open history?" 
+      : "Do you want to open manager tab?";
 
-  // --- 3. UI HANDLERS ---
+    if (window.confirm(confirmMessage)) {
+      setActiveTab(tab);
+    }
+  };
+
   const toggleAllCategories = (isOpen) => {
     const newState = {};
     Object.keys(groupedItemsMemo).forEach(cat => newState[cat] = isOpen);
@@ -201,6 +190,15 @@ export default function MerchantDash() {
     await fireSetDoc(fireDoc(db, "metabase", merchantUid), { items: updatedItems }, { merge: true });
     setIsEditingItem(false);
   };
+
+  // --- 3. CONDITIONAL RENDERS ---
+  if (!isAuthorized) {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center font-black text-orange-600">VERIFYING...</div>;
+  }
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center dark:bg-gray-950 font-black text-orange-600">LOADING...</div>;
+  }
 
   return (
     <div
@@ -225,7 +223,11 @@ export default function MerchantDash() {
         </div>
         <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
           {['orders', 'history', 'manage'].map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 rounded-lg font-bold text-xs uppercase transition-all ${activeTab === tab ? 'bg-white dark:bg-gray-700 shadow text-orange-600' : 'text-gray-500'}`}>
+            <button 
+              key={tab} 
+              onClick={() => handleTabChange(tab)} 
+              className={`flex-1 py-2 rounded-lg font-bold text-xs uppercase transition-all ${activeTab === tab ? 'bg-white dark:bg-gray-700 shadow text-orange-600' : 'text-gray-500'}`}
+            >
               {tab}
             </button>
           ))}

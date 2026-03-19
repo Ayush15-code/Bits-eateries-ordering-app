@@ -79,9 +79,7 @@
     --color-red-400: #ff6568;
     --color-red-500: #fb2c36;
     --color-red-600: #e40014;
-    --color-red-800: #9f0712;
     --color-red-900: #82181a;
-    --color-red-950: #460809;
     --color-orange-50: #fff7ed;
     --color-orange-100: #ffedd5;
     --color-orange-400: #ff8b1a;
@@ -96,8 +94,6 @@
     --color-green-500: #00c758;
     --color-green-600: #00a544;
     --color-green-700: #008138;
-    --color-green-800: #016630;
-    --color-green-900: #0d542b;
     --color-green-950: #032e15;
     --color-blue-500: #3080ff;
     --color-blue-600: #155dfc;
@@ -170,9 +166,7 @@
       --color-red-400: lab(63.7053% 60.745 31.3109);
       --color-red-500: lab(55.4814% 75.0732 48.8528);
       --color-red-600: lab(48.4493% 77.4328 61.5452);
-      --color-red-800: lab(33.7174% 55.8993 41.0293);
       --color-red-900: lab(28.5139% 44.5539 29.0463);
-      --color-red-950: lab(13.003% 29.04 16.7519);
       --color-orange-50: lab(97.7008% 1.53735 5.90649);
       --color-orange-100: lab(94.7127% 3.58394 14.3151);
       --color-orange-400: lab(70.0429% 42.5156 75.8207);
@@ -187,8 +181,6 @@
       --color-green-500: lab(70.5521% -66.5147 45.8073);
       --color-green-600: lab(59.0978% -58.6621 41.2579);
       --color-green-700: lab(47.0329% -47.0239 31.4788);
-      --color-green-800: lab(37.4616% -36.7971 22.9692);
-      --color-green-900: lab(30.797% -29.6927 17.382);
       --color-green-950: lab(15.6845% -20.4225 11.7249);
       --color-blue-500: lab(54.1736% 13.3369 -74.6839);
       --color-blue-600: lab(44.0605% 29.0279 -86.0352);
@@ -646,10 +638,6 @@
     margin-top: auto;
   }
 
-  .mr-1 {
-    margin-right: calc(var(--spacing) * 1);
-  }
-
   .mr-2 {
     margin-right: calc(var(--spacing) * 2);
   }
@@ -716,10 +704,6 @@
 
   .hidden {
     display: none;
-  }
-
-  .inline {
-    display: inline;
   }
 
   .inline-flex {
@@ -1359,16 +1343,6 @@
     background-color: var(--color-red-50);
   }
 
-  .bg-red-50\/30 {
-    background-color: #fef2f24d;
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .bg-red-50\/30 {
-      background-color: color-mix(in oklab, var(--color-red-50) 30%, transparent);
-    }
-  }
-
   .bg-red-100 {
     background-color: var(--color-red-100);
   }
@@ -1530,10 +1504,6 @@
 
   .p-12 {
     padding: calc(var(--spacing) * 12);
-  }
-
-  .px-1 {
-    padding-inline: calc(var(--spacing) * 1);
   }
 
   .px-2 {
@@ -1853,10 +1823,6 @@
     color: var(--color-green-700);
   }
 
-  .text-green-800 {
-    color: var(--color-green-800);
-  }
-
   .text-orange-500 {
     color: var(--color-orange-500);
   }
@@ -1875,10 +1841,6 @@
     color: var(--color-orange-600);
   }
 
-  .text-red-400 {
-    color: var(--color-red-400);
-  }
-
   .text-red-500 {
     color: var(--color-red-500);
   }
@@ -1895,20 +1857,6 @@
 
   .text-red-600 {
     color: var(--color-red-600);
-  }
-
-  .text-red-800 {
-    color: var(--color-red-800);
-  }
-
-  .text-red-900\/40 {
-    color: #82181a66;
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .text-red-900\/40 {
-      color: color-mix(in oklab, var(--color-red-900) 40%, transparent);
-    }
   }
 
   .text-white {
@@ -2490,16 +2438,6 @@
     background-color: var(--color-gray-950);
   }
 
-  .dark\:bg-green-900\/30:where(.dark, .dark *) {
-    background-color: #0d542b4d;
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .dark\:bg-green-900\/30:where(.dark, .dark *) {
-      background-color: color-mix(in oklab, var(--color-green-900) 30%, transparent);
-    }
-  }
-
   .dark\:bg-green-950\/20:where(.dark, .dark *) {
     background-color: #032e1533;
   }
@@ -2570,16 +2508,6 @@
     }
   }
 
-  .dark\:bg-red-950\/10:where(.dark, .dark *) {
-    background-color: #4608091a;
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .dark\:bg-red-950\/10:where(.dark, .dark *) {
-      background-color: color-mix(in oklab, var(--color-red-950) 10%, transparent);
-    }
-  }
-
   .dark\:bg-white:where(.dark, .dark *) {
     background-color: var(--color-white);
   }
@@ -2632,16 +2560,6 @@
 
   .dark\:text-red-400:where(.dark, .dark *) {
     color: var(--color-red-400);
-  }
-
-  .dark\:text-red-400\/40:where(.dark, .dark *) {
-    color: #ff656866;
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .dark\:text-red-400\/40:where(.dark, .dark *) {
-      color: color-mix(in oklab, var(--color-red-400) 40%, transparent);
-    }
   }
 
   .dark\:text-white:where(.dark, .dark *) {
