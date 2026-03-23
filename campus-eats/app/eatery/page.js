@@ -299,7 +299,7 @@ export default function EateriesList() {
           Designed & Developed by
         </p>
         <p className="text-[11px] font-semibold text-orange-600 italic mb-2">
-          Tushar Nandal & Ayush Ranjan Shrivastava
+          Tushar Nandal & Ayush
         </p>
         <div className="inline-block px-3 py-0.5 rounded-full bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/5">
           <p className="text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500">
