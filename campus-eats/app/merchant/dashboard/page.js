@@ -17,7 +17,8 @@ import {
   orderBy
 } from 'firebase/firestore';
 
-import { Eye, EyeOff, X, UtensilsCrossed, ChevronDown, Edit3, History, Trash2, Clock, User, Hash } from 'lucide-react';
+// Added Download icon here
+import { Eye, EyeOff, X, UtensilsCrossed, ChevronDown, Edit3, History, Trash2, Clock, User, Hash, Download } from 'lucide-react';
 
 export default function MerchantDash() {
   // --- 1. ALL HOOKS ---
@@ -30,6 +31,7 @@ export default function MerchantDash() {
   const [menuItems, setMenuItems] = useState([]);
   const [hiddenCategories, setHiddenCategories] = useState([]);
   const [shopStatus, setShopStatus] = useState(true);
+  // Updated state to hold both image data and order reference for the filename
   const [viewingScreenshot, setViewingScreenshot] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
   const [isEditingItem, setIsEditingItem] = useState(false);
@@ -107,15 +109,16 @@ export default function MerchantDash() {
       });
     });
 
-    const twoHoursAgo = new Date();
-    twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     const qHistory = query(
       collection(db, "orders"),
       where("shopId", "==", merchantShopId),
       where("status", "in", ["COLLECTED", "REJECTED"]),
-      where("createdAt", ">=", twoHoursAgo),
+      where("createdAt", ">=", todayStart),
       orderBy("createdAt", "desc"),
-      limit(25)
+      limit(50)
     );
     const unsubscribeHistory = onSnapshot(qHistory, (snap) => {
       setHistoryOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
@@ -168,6 +171,16 @@ export default function MerchantDash() {
     if (window.confirm(confirmMessage)) {
       setActiveTab(tab);
     }
+  };
+
+  // Helper function to handle image download
+  const downloadScreenshot = (base64Data, orderId) => {
+    const link = document.createElement("a");
+    link.href = base64Data;
+    link.download = `Order_${orderId}_Payment.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const toggleAllCategories = (isOpen) => {
@@ -251,7 +264,10 @@ export default function MerchantDash() {
                         {o.userName ? o.userName : "Name Not Provided"}
                       </p>
                     </div>
-                    <span className="text-[9px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-black uppercase tracking-widest">{o.status.replace("_", " ")}</span>
+                    <div className="text-right">
+                      <span className="text-[9px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-black uppercase tracking-widest block mb-1">{o.status.replace("_", " ")}</span>
+                      <p className="font-black text-lg text-orange-600">₹{o.total || o.totalPrice || 0}</p>
+                    </div>
                   </div>
 
                   <div className="my-4 space-y-2 border-y dark:border-gray-800 py-4">
@@ -267,7 +283,13 @@ export default function MerchantDash() {
 
                   <div className="space-y-2">
                     {o.status === "AWAITING_VERIFICATION" && (
-                      <button onClick={() => setViewingScreenshot(o.screenshotBase64)} className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform">View Payment Proof</button>
+                      <button 
+                        // Passing an object to help identify the file for download
+                        onClick={() => setViewingScreenshot({ data: o.screenshotBase64, id: o.orderId || o.id.slice(0,5) })} 
+                        className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform"
+                      >
+                        View Payment Proof
+                      </button>
                     )}
                     <div className="flex gap-2">
                       {o.status === "AWAITING_VERIFICATION" ? (
@@ -292,7 +314,7 @@ export default function MerchantDash() {
         {activeTab === 'history' && (
           <div className="space-y-4">
             {historyOrders.length === 0 ? (
-              <div className="text-center py-20 opacity-20 italic"><History size={48} className="mx-auto mb-4" /><p className="text-[10px] font-black uppercase">No Recent History</p></div>
+              <div className="text-center py-20 opacity-20 italic"><History size={48} className="mx-auto mb-4" /><p className="text-[10px] font-black uppercase">No History for Today</p></div>
             ) : (
               historyOrders.map((o) => (
                 <div key={o.id} className={`bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border shadow-sm ${o.status === 'REJECTED' ? 'border-red-500/20' : 'border-gray-100 dark:border-gray-800'}`}>
@@ -301,7 +323,10 @@ export default function MerchantDash() {
                       <h3 className="text-xl font-black italic dark:text-white">#{o.orderId || o.id?.slice(-4).toUpperCase()}</h3>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{o.userName || "Unknown Student"}</p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${o.status === 'REJECTED' ? 'bg-red-500 text-white' : 'bg-green-100 text-green-600'}`}>{o.status}</span>
+                    <div className="text-right">
+                      <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest block mb-1 ${o.status === 'REJECTED' ? 'bg-red-500 text-white' : 'bg-green-100 text-green-600'}`}>{o.status}</span>
+                      <p className="font-black text-sm dark:text-white">₹{o.total || o.totalPrice || 0}</p>
+                    </div>
                   </div>
                   <div className="p-4 rounded-3xl mb-4 bg-gray-50 dark:bg-gray-800/40">
                       {o.items?.map((item, idx) => (
@@ -386,11 +411,25 @@ export default function MerchantDash() {
         </div>
       )}
 
+      {/* ENHANCED VIEW SCREENSHOT MODAL WITH DOWNLOAD */}
       {viewingScreenshot && (
-        <div className="fixed inset-0 bg-black/90 z-[120] flex items-center justify-center p-6" onClick={() => setViewingScreenshot(null)}>
+        <div className="fixed inset-0 bg-black/95 z-[120] flex flex-col items-center justify-center p-6" onClick={() => setViewingScreenshot(null)}>
           <div className="relative max-w-sm w-full bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <img src={viewingScreenshot} alt="Proof" className="w-full h-auto" />
-            <button onClick={() => setViewingScreenshot(null)} className="absolute top-4 right-4 bg-red-50 text-white p-2 rounded-full"><X size={20} /></button>
+            <img src={viewingScreenshot.data} alt="Proof" className="w-full h-auto max-h-[70vh] object-contain" />
+            <div className="p-4 flex gap-3">
+               <button 
+                onClick={() => downloadScreenshot(viewingScreenshot.data, viewingScreenshot.id)} 
+                className="flex-1 bg-orange-600 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Download size={14} /> Save to Gallery
+              </button>
+              <button 
+                onClick={() => setViewingScreenshot(null)} 
+                className="p-3 bg-gray-100 dark:bg-gray-800 rounded-2xl text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
         </div>
       )}
