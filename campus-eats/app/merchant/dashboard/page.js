@@ -114,14 +114,13 @@ export default function MerchantDash() {
     // --- 2. HISTORY ORDERS (Conditional Listener - Only runs if tab is active) ---
     let unsubscribeHistory = () => {}; 
     if (activeTab === 'history') {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
       const qHistory = query(
         collection(db, "orders"),
         where("shopId", "==", merchantShopId),
         where("status", "in", ["COLLECTED", "REJECTED"]),
-        where("createdAt", ">=", todayStart),
+        where("createdAt", ">=", twoHoursAgo),
         orderBy("createdAt", "desc"),
         limit(40) // ✅ SAFETY: Limit history reads
       );
