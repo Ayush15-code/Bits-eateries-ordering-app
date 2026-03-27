@@ -77,14 +77,16 @@ export default function MerchantDash() {
     return () => unsubscribe();
   }, [router]);
 
-  // Real-time Listeners
+  // Real-time Listeners - BUDGET OPTIMIZED
   useEffect(() => {
     if (!merchantShopId || !merchantUid) return;
 
+    // --- 1. ACTIVE ORDERS (Added Limit 100 to prevent bot-read-spikes) ---
     const qOrders = query(
       collection(db, "orders"),
       where("shopId", "==", merchantShopId),
-      where("status", "in", ["AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED"])
+      where("status", "in", ["AWAITING_VERIFICATION", "CONFIRMED", "ACCEPTED"]),
+      limit(100) // ✅ SAFETY: Caps the cost if orders spike
     );
 
     const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
@@ -97,7 +99,7 @@ export default function MerchantDash() {
           const orderTime = orderData.createdAt?.toMillis() || Date.now();
           if (Date.now() - orderTime < 30000) {
             if (audioRef.current) audioRef.current.play().catch(e => {});
-            if (navigator.serviceWorker.controller) {
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
               navigator.serviceWorker.controller.postMessage({
                 type: 'NEW_ORDER',
                 title: 'Naya Order Aaya Hai! 🍔',
@@ -109,21 +111,27 @@ export default function MerchantDash() {
       });
     });
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // --- 2. HISTORY ORDERS (Conditional Listener - Only runs if tab is active) ---
+    let unsubscribeHistory = () => {}; 
+    if (activeTab === 'history') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
 
-    const qHistory = query(
-      collection(db, "orders"),
-      where("shopId", "==", merchantShopId),
-      where("status", "in", ["COLLECTED", "REJECTED"]),
-      where("createdAt", ">=", todayStart),
-      orderBy("createdAt", "desc"),
-      limit(50)
-    );
-    const unsubscribeHistory = onSnapshot(qHistory, (snap) => {
-      setHistoryOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
-    });
+      const qHistory = query(
+        collection(db, "orders"),
+        where("shopId", "==", merchantShopId),
+        where("status", "in", ["COLLECTED", "REJECTED"]),
+        where("createdAt", ">=", todayStart),
+        orderBy("createdAt", "desc"),
+        limit(40) // ✅ SAFETY: Limit history reads
+      );
+      
+      unsubscribeHistory = onSnapshot(qHistory, (snap) => {
+        setHistoryOrders(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      });
+    }
 
+    // --- 3. SHOP & MENU (Stay as they are, but keep cleanup) ---
     const unsubShop = onSnapshot(fireDoc(db, "shops", merchantShopId), (snap) => {
       if (snap.exists()) setShopStatus(snap.data().isOpen);
     });
@@ -140,13 +148,15 @@ export default function MerchantDash() {
       }
     });
 
+    // --- 4. CLEANUP (The "Money Saver") ---
     return () => {
       unsubscribeOrders();
       unsubscribeHistory();
       unsubShop();
       unsubMenu();
     };
-  }, [merchantShopId, merchantUid]);
+    // Added activeTab to dependencies so history listener starts/stops when you switch tabs
+  }, [merchantShopId, merchantUid, activeTab]);
 
   const groupedItemsMemo = useMemo(() => {
     return menuItems.reduce((acc, item) => {
