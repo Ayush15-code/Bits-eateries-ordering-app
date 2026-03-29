@@ -15,7 +15,7 @@ export default function EateriesList() {
   const [cartTotal, setCartTotal] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
-  const [activeOrder, setActiveOrder] = useState(null);
+  const [activeOrders, setActiveOrders] = useState([]); // Changed from activeOrder (null) to activeOrders ([])
   
   const router = useRouter();
 
@@ -25,19 +25,16 @@ export default function EateriesList() {
       const TWELVE_HOURS = 12 * 60 * 60 * 1000;
       const now = Date.now();
       
-      // Dono storage keys ko clean karna hai
       ['order_history', 'order_history_v2'].forEach(key => {
         const history = JSON.parse(localStorage.getItem(key) || '[]');
         if (history.length > 0) {
           const updated = history.filter(order => {
-            // Agar timestamp nahi hai toh rehne do (safe bet), warna check karo
             if (!order.timestamp) return true;
             return (now - order.timestamp) < TWELVE_HOURS;
           });
 
           if (updated.length !== history.length) {
             localStorage.setItem(key, JSON.stringify(updated));
-            // UI state ko update sirf active storage ke liye karo
             if (key === 'order_history_v2' || (key === 'order_history' && !localStorage.getItem('order_history_v2'))) {
               setOrderHistory(updated);
             }
@@ -46,8 +43,8 @@ export default function EateriesList() {
       });
     };
 
-    cleanOldHistory(); // Load par check karo
-    const interval = setInterval(cleanOldHistory, 60 * 60 * 1000); // Har ghante check karo
+    cleanOldHistory();
+    const interval = setInterval(cleanOldHistory, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -79,37 +76,42 @@ export default function EateriesList() {
     const savedTotal = localStorage.getItem('pending_total') || '0';
     const savedHistoryV2 = JSON.parse(localStorage.getItem('order_history_v2') || '[]');
     const savedHistoryLegacy = JSON.parse(localStorage.getItem('order_history') || '[]');
+    const fullHistory = savedHistoryV2.length > 0 ? savedHistoryV2 : savedHistoryLegacy;
 
     setCart(savedCart);
     setCartTotal(Number(savedTotal));
-    setOrderHistory(savedHistoryV2.length > 0 ? savedHistoryV2 : savedHistoryLegacy);
+    setOrderHistory(fullHistory);
 
-    let unsubActiveOrder = () => { };
-    if (savedHistoryV2.length > 0) {
-      const latest = savedHistoryV2[0];
-      const isRecent = !latest.timestamp || (Date.now() - latest.timestamp < 30 * 60 * 1000);
-      const docId = latest.docId || latest.id;
+    // --- MULTI-ORDER LISTENER LOGIC ---
+    // Track all orders from history that aren't collected/rejected and are from the last 12 hours
+    const trackedOrders = fullHistory.filter(order => 
+      order.status !== 'COLLECTED' && 
+      order.status !== 'REJECTED' &&
+      (!order.timestamp || (Date.now() - order.timestamp < 12 * 60 * 60 * 1000))
+    );
 
-      if (latest.status !== 'COLLECTED' && isRecent && docId) {
-        unsubActiveOrder = onSnapshot(doc(db, "orders", docId), (snap) => {
-          if (snap.exists()) {
-            const data = snap.data();
-            if (data.status === 'COLLECTED') {
-              setActiveOrder(null);
-              const updated = [...savedHistoryV2];
-              updated[0].status = 'COLLECTED';
-              localStorage.setItem('order_history_v2', JSON.stringify(updated));
-            } else {
-              setActiveOrder({ docId: snap.id, ...data });
-            }
+    const activeOrdersMap = {};
+    const unsubs = trackedOrders.map(order => {
+      const docId = order.docId || order.id;
+      if (!docId) return null;
+
+      return onSnapshot(doc(db, "orders", docId), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          // If order is now completed or rejected, remove it from the slider
+          if (data.status === 'COLLECTED' || data.status === 'REJECTED') {
+            delete activeOrdersMap[docId];
+          } else {
+            activeOrdersMap[docId] = { docId: snap.id, ...data };
           }
-        });
-      }
-    }
+          setActiveOrders(Object.values(activeOrdersMap));
+        }
+      });
+    }).filter(Boolean);
 
     return () => {
       unsubShops();
-      unsubActiveOrder();
+      unsubs.forEach(unsub => unsub());
     };
   }, []);
 
@@ -129,13 +131,13 @@ export default function EateriesList() {
       localStorage.removeItem('order_history');
       localStorage.removeItem('order_history_v2');
       setOrderHistory([]);
-      setActiveOrder(null);
+      setActiveOrders([]); // Reset slider
     }
   };
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-50 dark:bg-gray-950 min-h-screen relative text-gray-900 dark:text-gray-100 transition-colors flex flex-col">
-      {/* --- SIDEBAR DRAWER --- */}
+      {/* --- SIDEBAR DRAWER (ORIGINAL) --- */}
       <div className={`fixed inset-0 z-100 transition-visibility ${isSidebarOpen ? 'visible' : 'invisible'}`}>
         <div
           className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}
@@ -292,47 +294,45 @@ export default function EateriesList() {
           ))}
         </div>
 
-        {/* --- FOOTER (NOW PUSHED TO BOTTOM) --- */}
-        {/* --- FIXED DEVELOPER FOOTER --- */}
       <footer className="fixed bottom-0 left-0 right-0 z-[30] py-4 text-center bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-md border-t border-gray-100 dark:border-white/5 mx-auto max-w-md">
-        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-gray-500 mb-0.5">
-          Designed & Developed by
-        </p>
-        <p className="text-[11px] font-semibold text-orange-600 italic mb-2">
-          Tushar Nandal & Ayush
-        </p>
+        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-gray-500 mb-0.5">Designed & Developed by</p>
+        <p className="text-[11px] font-semibold text-orange-600 italic mb-2">Tushar Nandal & Ayush</p>
         <div className="inline-block px-3 py-0.5 rounded-full bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/5">
-          <p className="text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500">
-            Built with love in <span className="text-orange-600">AH9</span>
-          </p>
+          <p className="text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500">Built with love in <span className="text-orange-600">AH9</span></p>
         </div>
       </footer>
-                  
-       
       </div>
 
-      {/* --- FLOATING UI (STATUS & CART) --- */}
-      <div className="h-28" /> {/* Spacer for fixed banners */}
+      {/* --- UPDATED FLOATING STATUS SLIDER --- */}
+      <div className="h-28" />
       
-      {activeOrder && activeOrder.status !== 'COLLECTED' && activeOrder.status !== 'REJECTED' && (
-        <div
-          onClick={() => router.push(`/order-status/${activeOrder.docId || activeOrder.id}`)}
-          className="fixed bottom-24 left-6 right-6 bg-orange-600 p-4 rounded-4xl shadow-2xl flex items-center justify-between z-40 active:scale-95 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-2xl">
-              <Clock className="text-white animate-pulse" size={20} />
-            </div>
-            <div>
-              <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">
-                Active Order • Token #{activeOrder.orderId || (activeOrder.docId || activeOrder.id)?.slice(-3).toUpperCase()}
-              </p>
-              <p className="text-white font-black italic uppercase text-xs">
-                Status: {activeOrder.status.replace('_', ' ')}
-              </p>
-            </div>
+      {activeOrders.length > 0 && (
+        <div className="fixed bottom-24 left-0 right-0 z-40">
+           {/* no-scrollbar and snap-x allow horizontal swiping */}
+           <div className="flex overflow-x-auto gap-4 px-6 pb-4 no-scrollbar snap-x">
+            {activeOrders.map((order) => (
+              <div
+                key={order.docId || order.id}
+                onClick={() => router.push(`/status/${order.docId || order.id}`)}
+                className="min-w-[85%] bg-orange-600 p-4 rounded-4xl shadow-2xl flex items-center justify-between snap-center active:scale-95 transition-all cursor-pointer border border-white/10"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 p-3 rounded-2xl">
+                    <Clock className="text-white animate-pulse" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black text-white/60 uppercase tracking-widest">
+                      Active Order • Token #{order.orderId || (order.docId || order.id)?.slice(-3).toUpperCase()}
+                    </p>
+                    <p className="text-white font-black italic uppercase text-xs">
+                      Status: {order.status.replace('_', ' ')}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="text-white/40" size={20} />
+              </div>
+            ))}
           </div>
-          <ChevronRight className="text-white/40" size={20} />
         </div>
       )}
 
@@ -346,12 +346,8 @@ export default function EateriesList() {
               <X size={14} strokeWidth={3} />
             </button>
             <div className="flex flex-col pl-3">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-0.5">
-                Your Tray
-              </span>
-              <span className="font-black text-lg italic">
-                {cart.length} Items • ₹{cartTotal}
-              </span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-0.5">Your Tray</span>
+              <span className="font-black text-lg italic">{cart.length} Items • ₹{cartTotal}</span>
             </div>
             <button
               onClick={() => router.push('/checkout')}
@@ -366,6 +362,9 @@ export default function EateriesList() {
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #ea580c; border-radius: 10px; }
+        /* Hide scrollbar logic for the sliding status bar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
   );
