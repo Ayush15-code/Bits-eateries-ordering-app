@@ -8,7 +8,7 @@ import InstallButton from '../components/InstallButton';
 import { Clock, X, ChevronRight, Menu as MenuIcon, ReceiptText, Trash2 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
-
+// sdvdrgtgegrh
 export default function EateriesList() {
   const [shops, setShops] = useState([]);
   const [cart, setCart] = useState([]);
